@@ -18,20 +18,20 @@ def get_tokenizer(model_name="distilbert-base-uncased", save_path=None):
             tokenizer.save_pretrained(save_path)
         return tokenizer
 
-def prepare_squad_features(examples, tokenizer_path, max_length=512):
-    '''
-    This function prepares features for the SQuAD dataset.
-    It tokenizes the question and context, aligns the labels, and handles overlapping contexts.
-    '''
+def prepare_squad_features(examples, tokenizer_path, max_length=512, stride=128):
+    """
+    Tokenizes SQuAD question and context, and aligns labels (start_positions, end_positions).
+    This function is designed to be used with datasets.map() and multiprocessing.
+    """
 
     local_tokenizer = get_tokenizer(model_name="distilbert-base-uncased", save_path=tokenizer_path)
 
     tokenized_examples = local_tokenizer(
         examples["question"],
         examples["context"],
-        truncation="only_second",
+        truncation="only_second", # Truncate only the context (second sequence)
         max_length=max_length,
-        stride=128, # Overlapping context chunks to ensure answers aren't cut
+        stride=stride, # Overlapping context chunks to ensure answers aren't cut
         return_overflowing_tokens=True,
         return_offsets_mapping=True,
         padding="max_length",
