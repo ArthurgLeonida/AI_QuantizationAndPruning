@@ -47,7 +47,7 @@ if __name__ == '__main__':
     print("Parent process tokenizer loaded/saved successfully.")
 
     tokenized_datasets_with_labels = None
-    squad_dataset_dict = load_dataset("squad")
+    squad_dataset_dict = load_dataset("squad_v2")
 
     if os.path.isdir(TOKENIZED_DATASET_SAVE_PATH):
         print(f"\nLoading tokenized dataset with labels from local path: {TOKENIZED_DATASET_SAVE_PATH}")
@@ -82,7 +82,9 @@ if __name__ == '__main__':
     print("\nFinal Tokenized Datasets with Labels:", tokenized_datasets_with_labels)
     # print("First tokenized train example with labels:", tokenized_datasets_with_labels["train"][0])
 
+    
     print("\n--- Starting Model Training and Evaluation Phase ---")
+    
     train_qa_model(
         model_name=MODEL_NAME,
         train_dataset=tokenized_datasets_with_labels["train"],
@@ -99,12 +101,11 @@ if __name__ == '__main__':
         save_path=FINE_TUNED_MODEL_SAVE_PATH,
     )
     print("\n--- Model Training and Evaluation Complete ---")
-    
+
     print("\n--- Starting Separate Evaluation of Fine-Tuned Model ---")
     evaluate_fine_tuned_model(
         model_path=FINE_TUNED_MODEL_SAVE_PATH,
         tokenizer_path=TOKENIZER_SAVE_PATH, # <-- FIX: Use TOKENIZER_SAVE_PATH for base tokenizer, or FINE_TUNED_MODEL_SAVE_PATH if saved there
-        tokenized_dataset_path=TOKENIZED_DATASET_SAVE_PATH,
         eval_dataset=tokenized_datasets_with_labels["validation"], 
         original_eval_examples=squad_dataset_dict["validation"], 
         compute_metrics_fn=compute_squad_metrics,
