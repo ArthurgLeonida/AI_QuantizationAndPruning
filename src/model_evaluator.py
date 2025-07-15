@@ -7,7 +7,7 @@ from functools import partial # Needed for binding arguments to compute_metrics
 def evaluate_fine_tuned_model(
     model_path: str,
     tokenizer_path: str,
-    tokenized_dataset_path: str,
+    eval_dataset,
     original_eval_examples, # Original examples needed for SQuAD metrics
     compute_metrics_fn,
     per_device_eval_batch_size: int = 16,
@@ -40,11 +40,6 @@ def evaluate_fine_tuned_model(
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
     print("Tokenizer loaded successfully.")
 
-    print(f"Loading tokenized dataset from: {tokenized_dataset_path}")
-    tokenized_datasets = load_from_disk(tokenized_dataset_path)
-    eval_dataset = tokenized_datasets["validation"]
-    print("Tokenized dataset loaded successfully.")
-
     # We need TrainingArguments even for evaluation to configure the Trainer
     print("\nSetting up Evaluation Arguments...")
     eval_args = TrainingArguments(
@@ -62,7 +57,6 @@ def evaluate_fine_tuned_model(
         args=eval_args,
         eval_dataset=eval_dataset,
         processing_class=tokenizer, # Use processing_class as per latest transformers
-        # Bind original_eval_examples and tokenized_features (eval_dataset) to compute_metrics
         compute_metrics=partial(
             compute_metrics_fn,
             original_examples=original_eval_examples,
