@@ -13,6 +13,7 @@ def evaluate_fine_tuned_model(
     per_device_eval_batch_size: int = 16,
     fp16: bool = False,
     output_dir: str = "./eval_results", # Directory for evaluation logs
+    no_answer_threshold: float = 0.0,
 ):
     """
     Loads a fine-tuned Question Answering model and evaluates its performance.
@@ -61,7 +62,8 @@ def evaluate_fine_tuned_model(
             compute_metrics_fn,
             original_examples=original_eval_examples,
             tokenized_features=eval_dataset, # This is your tokenized validation set
-            tokenizer=tokenizer # Pass the tokenizer here
+            tokenizer=tokenizer,
+            no_answer_threshold=no_answer_threshold
         ),
     )
     print("Trainer initialized for evaluation.")
