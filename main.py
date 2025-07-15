@@ -8,6 +8,7 @@ from src.tokenizer_utils import get_tokenizer, prepare_squad_features
 from src.model_trainer import train_qa_model
 from src.metric_utils import compute_squad_metrics # Use the renamed function
 from datasets import load_dataset, load_from_disk
+from src.model_evaluator import evaluate_fine_tuned_model # For separate evaluation
 
 # Import configuration
 from config import (
@@ -46,13 +47,13 @@ if __name__ == '__main__':
     print("Parent process tokenizer loaded/saved successfully.")
 
     tokenized_datasets_with_labels = None
+    squad_dataset_dict = load_dataset("squad")
 
     if os.path.isdir(TOKENIZED_DATASET_SAVE_PATH):
         print(f"\nLoading tokenized dataset with labels from local path: {TOKENIZED_DATASET_SAVE_PATH}")
         tokenized_datasets_with_labels = load_from_disk(TOKENIZED_DATASET_SAVE_PATH)
     else:
         print("\nLocal tokenized dataset with labels not found. Loading and preparing SQuAD...")
-        squad_dataset_dict = load_dataset("squad")
 
         print("Original Train Dataset:", squad_dataset_dict["train"])
         print("Original Validation Dataset:", squad_dataset_dict["validation"])
@@ -98,3 +99,17 @@ if __name__ == '__main__':
         save_path=FINE_TUNED_MODEL_SAVE_PATH,
     )
     print("\n--- Model Training and Evaluation Complete ---")
+    
+    print("\n--- Starting Separate Evaluation of Fine-Tuned Model ---")
+    evaluate_fine_tuned_model(
+        model_path=FINE_TUNED_MODEL_SAVE_PATH,
+        tokenizer_path=TOKENIZER_SAVE_PATH, # <-- FIX: Use TOKENIZER_SAVE_PATH for base tokenizer, or FINE_TUNED_MODEL_SAVE_PATH if saved there
+        tokenized_dataset_path=TOKENIZED_DATASET_SAVE_PATH,
+        eval_dataset=tokenized_datasets_with_labels["validation"], 
+        original_eval_examples=squad_dataset_dict["validation"], 
+        compute_metrics_fn=compute_squad_metrics,
+        per_device_eval_batch_size=PER_DEVICE_EVAL_BATCH_SIZE,
+        fp16=USE_FP16,
+        output_dir="./final_eval_results" # Separate directory for final evaluation logs
+    )
+    print("\n--- Separate Evaluation Complete ---")
