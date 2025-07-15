@@ -10,12 +10,16 @@ FINE_TUNED_MODEL_SAVE_PATH = "./fine_tuned_baseline_model"
 TRAINER_OUTPUT_DIR = "./results"
 
 # Training Hyperparameters
-NUM_TRAIN_EPOCHS = 3
+NUM_TRAIN_EPOCHS = 10
 PER_DEVICE_TRAIN_BATCH_SIZE = 16
 PER_DEVICE_EVAL_BATCH_SIZE = 16
 LEARNING_RATE = 2e-5
 WEIGHT_DECAY = 0.01
 USE_FP16 = True # Set to True if your GPU supports it (RTX 3050 does)
+NO_ANSWER_THRESHOLD = 15.03 # Start with 0.0, then try 15.03 after full training.
 
 # Multiprocessing
 NUM_PROCESSES_FOR_MAP = 6 
+
+# Subset for quick testing (set to -1 or a very large number for full dataset)
+SUBSET_SIZE = -1 # For training quickly. Set to -1 or large number for full dataset.

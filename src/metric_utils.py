@@ -8,7 +8,9 @@ from tqdm.auto import tqdm # For progress bar during post-processing
 squad_metric = load("squad_v2")
 
 def postprocess_qa_predictions(
-    examples, features, predictions, tokenizer, n_best_size=20, max_answer_length=30
+    examples, features, predictions, tokenizer, 
+    n_best_size=20, max_answer_length=30, 
+    no_answer_threshold=0.0
 ):
     all_start_logits, all_end_logits = predictions
 
@@ -116,12 +118,12 @@ def postprocess_qa_predictions(
         else:
             best_answer = {"text": "", "score": 0.0}
 
-        # --- NEW: Decide final prediction text and store 'no_answer_probability' ---
+        # SQuAD v2.0 specific: Compare best span score with NULL score using threshold ---
         final_prediction_text = ""
-        # The 'no_answer_probability' is typically the `min_null_score` (raw logit sum for CLS token)
         no_answer_probability = min_null_score if min_null_score is not None else -float('inf') 
 
-        if no_answer_probability > best_answer["score"]: # Compare null score with best span score
+        # The decision now uses the 'no_answer_threshold'
+        if no_answer_probability > best_answer["score"] + no_answer_threshold: # <--- CHANGE HERE
             final_prediction_text = "" # Predict empty string for no answer
         else:
             final_prediction_text = best_answer["text"]
@@ -159,11 +161,12 @@ def postprocess_qa_predictions(
     return squad_metric.compute(predictions=formatted_predictions, references=references)
 
 # The compute_squad_metrics function remains unchanged from previous version
-def compute_squad_metrics(p, *, original_examples, tokenized_features, tokenizer):
+def compute_squad_metrics(p, *, original_examples, tokenized_features, tokenizer, no_answer_threshold=0.0):
     results = postprocess_qa_predictions(
         examples=original_examples,
         features=tokenized_features,
         predictions=p.predictions,
         tokenizer=tokenizer,
+        no_answer_threshold=no_answer_threshold
     )
     return results
