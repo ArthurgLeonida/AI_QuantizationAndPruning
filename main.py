@@ -8,6 +8,7 @@ from src.tokenizer_utils import get_tokenizer, prepare_squad_features
 from src.model_trainer import train_qa_model # For training the model
 from src.metric_utils import compute_squad_metrics # For computing evaluation metrics
 from src.model_evaluator import evaluate_fine_tuned_model # For evaluating already fine-tuned model
+from src.model_optmizer import quantize_PTQ_model, measure_model_size # NEW IMPORTS for optimization
 from datasets import load_dataset, load_from_disk
 
 # Import configuration from config.py
@@ -27,7 +28,8 @@ from config import (
     USE_FP16,
     NUM_PROCESSES_FOR_MAP,
     SUBSET_SIZE, # For testing with smaller dataset
-    NO_ANSWER_THRESHOLD
+    NO_ANSWER_THRESHOLD,
+    QUANTIZED_MODEL_SAVE_PATH
 )
 
 
@@ -146,7 +148,7 @@ if __name__ == '__main__':
         no_answer_threshold=NO_ANSWER_THRESHOLD
     )
     print("\n--- Model Training Complete ---")
-    '''
+    
 
     # --- Evaluate the Fine-Tuned Model ---
     print("\n--- Starting Separate Evaluation of Fine-Tuned Model ---")
@@ -162,3 +164,37 @@ if __name__ == '__main__':
         no_answer_threshold=NO_ANSWER_THRESHOLD
     )
     print("\n--- Separate Evaluation Complete ---")
+    '''
+
+    # --- Step 5: Post-Training Quantization (PTQ) and Evaluation ---
+    print("\n--- Starting Post-Training Quantization and Evaluation ---")
+    
+    # Apply dynamic quantization
+    quantized_model = quantize_PTQ_model(
+        model_path=FINE_TUNED_MODEL_SAVE_PATH,
+        quantized_model_save_path=QUANTIZED_MODEL_SAVE_PATH
+    )
+
+    if quantized_model: # Only proceed if quantization was successful
+        # Measure quantized model size
+        print("\n--- Quantized Model Size ---")
+        measure_model_size(QUANTIZED_MODEL_SAVE_PATH)
+
+        # Evaluate the quantized model
+        print("\n--- Quantized Model Evaluation ---")
+        # Ensure evaluate_fine_tuned_model is compatible with a torch.nn.Module directly
+        # It's currently designed to load from path.
+        # For evaluation of PTQ, usually you load the saved quantized model.
+        # PTQ typically speeds up CPU inference.
+        evaluate_fine_tuned_model(
+            model_path=QUANTIZED_MODEL_SAVE_PATH,
+            tokenizer_path=QUANTIZED_MODEL_SAVE_PATH, # Tokenizer saved with quantized model
+            eval_dataset=eval_dataset_for_trainer,
+            original_eval_examples=original_eval_examples_for_metrics,
+            compute_metrics_fn=bound_compute_metrics_for_trainer,
+            per_device_eval_batch_size=PER_DEVICE_EVAL_BATCH_SIZE,
+            fp16=False, # INT8 quantized models typically run on CPU or specialized hardware, not FP16
+            output_dir=os.path.join(TRAINER_OUTPUT_DIR, "quantized_eval_results"), # Separate dir for clarity
+            no_answer_threshold=NO_ANSWER_THRESHOLD # Use the same threshold
+        )
+    print("\n--- Post-Training Quantization Complete ---")
