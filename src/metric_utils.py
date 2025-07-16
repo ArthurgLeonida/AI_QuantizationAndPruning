@@ -23,8 +23,6 @@ def postprocess_qa_predictions(
     all_predictions = collections.OrderedDict() 
 
     print("\n--- Starting SQuAD v2.0 Post-processing ---")
-    debug_example_count = 0 
-    max_debug_examples = 3 
 
     for example_index, example in enumerate(tqdm(examples, desc="Post-processing predictions")):
         feature_indices = features_per_example[example_index]
@@ -32,13 +30,6 @@ def postprocess_qa_predictions(
         min_null_score = None 
         valid_answers = []
         context = example["context"]
-
-        if debug_example_count < max_debug_examples:
-            print(f"\n--- Debugging Example ID: {example['id']} ---")
-            print(f"  Original Question: {example['question']}")
-            print(f"  Original Answer: {example['answers']}")
-            print(f"  Context (first 100 chars): {example['context'][:100]}...")
-
 
         for feature_index in feature_indices:
             start_logits = all_start_logits[feature_index]
@@ -50,14 +41,6 @@ def postprocess_qa_predictions(
             feature_null_score = start_logits[0] + end_logits[0]
             if min_null_score is None or feature_null_score < min_null_score:
                 min_null_score = feature_null_score
-
-            if debug_example_count < max_debug_examples:
-                print(f"  Feature Index: {feature_index}")
-                print(f"    CLS (Null) Logit Score: {feature_null_score:.4f}")
-                top_start_indices = np.argsort(start_logits)[-5:].tolist()
-                top_end_indices = np.argsort(end_logits)[-5:].tolist()
-                print(f"    Top 5 Start Logits/Indices: {[f'{start_logits[i]:.2f}({i})' for i in top_start_indices]}")
-                print(f"    Top 5 End Logits/Indices: {[f'{end_logits[i]:.2f}({i})' for i in top_end_indices]}")
 
             # --- Derive context boundaries from input_ids and tokenizer's SEP token ---
             try:
@@ -133,27 +116,12 @@ def postprocess_qa_predictions(
             "prediction_text": final_prediction_text,
             "no_answer_probability": no_answer_probability
         }
-        # --- END NEW ---
 
-        # Debug prints for final prediction
-        if debug_example_count < max_debug_examples:
-            print(f"  Total Valid Spans Found: {len(valid_answers)}")
-            if len(valid_answers) > 0:
-                best_answer_candidate = sorted(valid_answers, key=lambda x: x["score"], reverse=True)[0]
-                print(f"  Best Span Candidate: '{best_answer_candidate['text']}' (Score: {best_answer_candidate['score']:.4f})")
-            else:
-                print("  No valid span candidates found.")
-            print(f"  Min Null Score: {min_null_score:.4f}")
-            print(f"  Final Predicted Answer for '{example['id']}': '{final_prediction_text}'")
-            debug_example_count += 1
-            # import time; time.sleep(0.1) # Uncomment for slower debug output
-
-    # --- FIX: Format predictions to include 'no_answer_probability' ---
+    # Format predictions to include 'no_answer_probability' ---
     formatted_predictions = [
         {"id": k, "prediction_text": v["prediction_text"], "no_answer_probability": v["no_answer_probability"]} 
         for k, v in all_predictions.items()
     ]
-    # --- END FIX ---
 
     references = [{"id": ex["id"], "answers": ex["answers"]} for ex in examples]
     
