@@ -6,6 +6,7 @@ fine_tuned_baseline_model/
 logs/
 results/
 squad_tokenized_dataset/
+PTQ_model/
 
 # ----------------------------------------------------
 # Python Specific Files

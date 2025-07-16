@@ -8,6 +8,7 @@ TOKENIZER_SAVE_PATH = "./distilbert_tokenizer_local"
 TOKENIZED_DATASET_SAVE_PATH = "./squad_tokenized_dataset"
 FINE_TUNED_MODEL_SAVE_PATH = "./fine_tuned_baseline_model"
 TRAINER_OUTPUT_DIR = "./results"
+QUANTIZED_MODEL_SAVE_PATH = "./PTQ_model" # Path to save the quantized model
 
 # Training Hyperparameters
 NUM_TRAIN_EPOCHS = 10
