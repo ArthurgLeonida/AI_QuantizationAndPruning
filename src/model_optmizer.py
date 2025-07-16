@@ -131,6 +131,50 @@ def prune_PTUP_model(
 
     return model # Return the pruned model object
 
+def calculate_sparsity(model_path: str) -> float:
+    """
+    Calculates the sparsity (percentage of zero weights) of a model saved at model_path.
+    This function assumes the model is saved after prune.remove().
+
+    Args:
+        model_path (str): Path to the directory containing the saved model.
+
+    Returns:
+        float: The percentage of zero weights in the model (0.0 to 100.0).
+    """
+    if not os.path.isdir(model_path):
+        print(f"Error: Model directory not found at '{model_path}'.")
+        return 0.0
+
+    try:
+        # Load the model to inspect its weights.
+        # This will load either the full-precision baseline or the pruned model.
+        model = AutoModelForQuestionAnswering.from_pretrained(model_path)
+    except Exception as e:
+        print(f"Error loading model for sparsity calculation from '{model_path}': {e}")
+        print("Ensure the path contains a valid Hugging Face model save with config.json and weights.")
+        return 0.0
+
+    total_elements = 0
+    zero_elements = 0
+    
+    # Iterate over all named parameters in the model
+    for name, param in model.named_parameters():
+        # Focus on weight matrices (typically contain 'weight' in their name)
+        # and exclude biases if not pruned, or include all trainable parameters.
+        # For L1Unstructured, it typically applies to weight matrices.
+        if 'weight' in name and param.dim() > 1: # Exclude 1D biases, focus on layers often pruned
+            total_elements += param.numel() # Count total number of elements in the tensor
+            zero_elements += torch.sum(param == 0).item() # Count elements exactly equal to 0
+
+    if total_elements == 0:
+        sparsity_percentage = 0.0
+    else:
+        sparsity_percentage = (zero_elements / total_elements) * 100
+        
+    print(f"Model sparsity at '{model_path}': {sparsity_percentage:.2f}% (zeroed parameters)")
+    return sparsity_percentage
+
 def measure_model_size(model_path: str):
 
     """

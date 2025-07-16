@@ -2,15 +2,13 @@ import multiprocessing
 import os
 from functools import partial
 import torch
-
+from datasets import load_dataset, load_from_disk
 # Import modules from src directory
 from src.tokenizer_utils import get_tokenizer, prepare_squad_features
 from src.model_trainer import train_qa_model # For training the model
 from src.metric_utils import compute_squad_metrics # For computing evaluation metrics
 from src.model_evaluator import evaluate_fine_tuned_model # For evaluating already fine-tuned model
-from src.model_optmizer import quantize_PTQ_model, measure_model_size, benchmark_inference_speed, prune_PTUP_model
-from datasets import load_dataset, load_from_disk
-
+from src.model_optmizer import quantize_PTQ_model, measure_model_size, benchmark_inference_speed, prune_PTUP_model, calculate_sparsity
 # Import configuration from config.py
 from config import (
     MODEL_NAME,
@@ -149,7 +147,11 @@ if __name__ == '__main__':
     
     print("\n--- Baseline Model Size ---")
     measure_model_size(FINE_TUNED_MODEL_SAVE_PATH)
-    
+    '''
+    print("\n--- Baseline Model Sparsity ---")
+    baseline_sparsity = calculate_sparsity(FINE_TUNED_MODEL_SAVE_PATH)
+    print(f"Baseline model has {baseline_sparsity:.2f}% sparsity (should be 0% for full-precision).")
+    '''
     # --- Evaluate the Fine-Tuned Model ---
     baseline_gpu_samples_per_sec = benchmark_inference_speed(
         model_path=FINE_TUNED_MODEL_SAVE_PATH,
@@ -226,6 +228,10 @@ if __name__ == '__main__':
     if pruned_model:
         print("\n--- Pruned Model Size ---")
         measure_model_size(PRUNED_MODEL_SAVE_PATH)
+
+        print("\n--- Pruned Model Sparsity ---")
+        pruned_sparsity = calculate_sparsity(PRUNED_MODEL_SAVE_PATH)
+        print(f"Pruned model has {pruned_sparsity:.2f}% sparsity.")
 
         print("\n--- Benchmarking Pruned Model Inference Speed ---")
         pruned_gpu_samples_per_sec = benchmark_inference_speed(
