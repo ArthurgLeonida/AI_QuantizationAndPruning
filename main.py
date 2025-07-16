@@ -147,22 +147,23 @@ if __name__ == '__main__':
     
     print("\n--- Baseline Model Size ---")
     measure_model_size(FINE_TUNED_MODEL_SAVE_PATH)
-    '''
+
     print("\n--- Baseline Model Sparsity ---")
     baseline_sparsity = calculate_sparsity(FINE_TUNED_MODEL_SAVE_PATH)
     print(f"Baseline model has {baseline_sparsity:.2f}% sparsity (should be 0% for full-precision).")
-    '''
+
+    
     # --- Evaluate the Fine-Tuned Model ---
     baseline_gpu_samples_per_sec = benchmark_inference_speed(
         model_path=FINE_TUNED_MODEL_SAVE_PATH,
         tokenizer_path=TOKENIZER_SAVE_PATH, # Use base tokenizer path for loading (it contains model name)
         is_quantized=False,
-        device_str="cuda", # Test on GPU if available
+        device_str="cpu", # Test on GPU if available
         batch_size=PER_DEVICE_EVAL_BATCH_SIZE,
         sequence_length=MAX_SEQUENCE_LENGTH # Pass sequence_length
     )
     print(f"Baseline (FP32) Samples/Sec (GPU): {baseline_gpu_samples_per_sec:.2f}")
-
+    
     evaluate_fine_tuned_model(
         model_path=FINE_TUNED_MODEL_SAVE_PATH,
         tokenizer_path=FINE_TUNED_MODEL_SAVE_PATH, # Tokenizer is saved with the model
@@ -177,12 +178,12 @@ if __name__ == '__main__':
     )
     print("\n--- Evaluation Complete ---")
     
+    '''
     # --- Step 5: Post-Training Quantization (PTQ) and Evaluation ---
     print("\n--- Starting Post-Training Quantization and Evaluation ---")
     
     # Apply dynamic quantization
     quantized_model = quantize_PTQ_model(model_path=FINE_TUNED_MODEL_SAVE_PATH, quantized_model_save_path=QUANTIZED_MODEL_SAVE_PATH)
-
     
     if quantized_model: # Only proceed if quantization was successful
         # Measure quantized model size
@@ -199,7 +200,7 @@ if __name__ == '__main__':
             sequence_length=MAX_SEQUENCE_LENGTH # Pass sequence_length
         )
         print(f"Quantized (INT8) Samples/Sec (CPU): {quantized_cpu_samples_per_sec:.2f}")
-
+'''
         # Evaluate the quantized model
         print("\n--- Quantized Model Evaluation ---")
         evaluate_fine_tuned_model(
@@ -215,7 +216,7 @@ if __name__ == '__main__':
             no_answer_threshold=NO_ANSWER_THRESHOLD # Use the same threshold
         )
     print("\n--- Post-Training Quantization Complete ---")
-'''
+
     print("\n--- Starting Pruning and Evaluation ---")
 
     pruned_model = prune_PTUP_model(
@@ -258,3 +259,4 @@ if __name__ == '__main__':
             no_answer_threshold=NO_ANSWER_THRESHOLD
         )
     print("\n--- Post Training Unstructured Pruning Complete ---")
+    '''
