@@ -3,6 +3,8 @@ import os
 from transformers import AutoModelForQuestionAnswering, AutoTokenizer # Keep AutoConfig for config loading
 import glob
 import time
+import torch.nn.utils.prune as prune
+
 
 def quantize_PTQ_model(model_path: str, quantized_model_save_path: str):
     """
@@ -48,6 +50,86 @@ def quantize_PTQ_model(model_path: str, quantized_model_save_path: str):
     print("Quantized model config and tokenizer saved.")
     
     return quantized_model_obj
+
+def prune_PTUP_model(
+    model_path: str,
+    pruned_model_save_path: str,
+    pruning_amount: float = 0.2, # Percentage of weights to prune
+    model_name: str = "distilbert-base-uncased", # Needed for AutoModel.from_pretrained if reloading
+):
+    """
+    Applies L1 unstructured pruning to a fine-tuned Question Answering model.
+    The pruning is applied post-training and made permanent.
+
+    Args:
+        model_path (str): Path to the directory containing the fine-tuned baseline model.
+        pruned_model_save_path (str): Path to save the pruned model.
+        pruning_amount (float): The percentage of weights to prune (0.0 to 1.0).
+        model_name (str): The name of the original pre-trained model (for loading AutoModel correctly).
+
+    Returns:
+        transformers.PreTrainedModel: The pruned model object.
+    """
+    if not os.path.isdir(model_path):
+        print(f"Error: Full-precision model not found at '{model_path}'.")
+        return None
+
+    print(f"\nLoading model from: {model_path} for pruning...")
+    # Load the model. AutoModelForQuestionAnswering will handle .safetensors or .bin
+    model = AutoModelForQuestionAnswering.from_pretrained(model_path)
+    model.eval() # It's good practice to prune models in evaluation mode
+
+    # --- Apply L1 Unstructured Pruning ---
+    print(f"Applying L1 unstructured pruning ({pruning_amount*100:.0f}%) to linear layers...")
+
+    # Define the modules (layers) and the attributes (weights) within them to prune.
+    # For DistilBERT, we target the weight matrices of its linear layers.
+    parameters_to_prune = []
+    
+    # Prune transformer layers (q_lin, k_lin, v_lin, out_lin, ffn.lin1, ffn.lin2 in each layer)
+    for i in range(model.distilbert.config.n_layers): # DistilBERT has 6 transformer layers
+        layer = model.distilbert.transformer.layer[i]
+        parameters_to_prune.extend([
+            (layer.attention.q_lin, 'weight'),
+            (layer.attention.k_lin, 'weight'),
+            (layer.attention.v_lin, 'weight'),
+            (layer.attention.out_lin, 'weight'),
+            (layer.ffn.lin1, 'weight'),
+            (layer.ffn.lin2, 'weight'),
+        ])
+    # Prune the final Question Answering head (classifier)
+    parameters_to_prune.append((model.qa_outputs, 'weight'))
+
+    # Apply pruning to the specified parameters
+    for module, name in parameters_to_prune:
+        # prune.l1_unstructured sets the 'name_orig' and 'name_mask' attributes
+        # and registers a forward pre-hook.
+        prune.l1_unstructured(module, name=name, amount=pruning_amount)
+
+    # --- Remove pruning reparameterization (make it permanent) ---
+    # This step is crucial to actually remove the pruned weights and reduce the model size.
+    # It removes the masks and makes the pruned weights zero, replacing the original 'weight' attribute.
+    print("Removing pruning reparameterization to make pruning permanent...")
+    for module, name in parameters_to_prune:
+        prune.remove(module, name)
+    
+    # Note: After prune.remove(), the actual number of non-zero parameters is reduced.
+    # Some tools (like count_parameters) might need to be re-run to confirm.
+
+    # --- Save the pruned model ---
+    if not os.path.exists(pruned_model_save_path):
+        os.makedirs(pruned_model_save_path)
+
+    print(f"Saving pruned model to: {pruned_model_save_path}")
+    # Save the pruned model using save_pretrained, which correctly handles config/weights.
+    model.save_pretrained(pruned_model_save_path)
+
+    # Copy tokenizer (it's the same as the original fine-tuned model's tokenizer)
+    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    tokenizer.save_pretrained(pruned_model_save_path)
+    print("Pruned model and tokenizer saved.")
+
+    return model # Return the pruned model object
 
 def measure_model_size(model_path: str):
 

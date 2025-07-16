@@ -8,7 +8,7 @@ from src.tokenizer_utils import get_tokenizer, prepare_squad_features
 from src.model_trainer import train_qa_model # For training the model
 from src.metric_utils import compute_squad_metrics # For computing evaluation metrics
 from src.model_evaluator import evaluate_fine_tuned_model # For evaluating already fine-tuned model
-from src.model_optmizer import quantize_PTQ_model, measure_model_size, benchmark_inference_speed
+from src.model_optmizer import quantize_PTQ_model, measure_model_size, benchmark_inference_speed, prune_PTUP_model
 from datasets import load_dataset, load_from_disk
 
 # Import configuration from config.py
@@ -29,7 +29,9 @@ from config import (
     NUM_PROCESSES_FOR_MAP,
     SUBSET_SIZE, # For testing with smaller dataset
     NO_ANSWER_THRESHOLD,
-    QUANTIZED_MODEL_SAVE_PATH
+    QUANTIZED_MODEL_SAVE_PATH,
+    PRUNED_MODEL_SAVE_PATH,
+    PRUNING_AMOUNT
 )
 
 
@@ -55,9 +57,7 @@ if __name__ == '__main__':
     parent_tokenizer = get_tokenizer(model_name=MODEL_NAME, save_path=TOKENIZER_SAVE_PATH)
     print("Parent process tokenizer loaded/saved successfully.")
 
-    # --- Step 2: Handle Tokenized Dataset Loading/Saving ---
-    # This ensures your tokenized dataset (with labels) is available.
-    # It will process it if not found, or load it from disk.
+    # --- Handle Tokenized Dataset Loading/Saving ---
     tokenized_datasets_with_labels = None
     if os.path.isdir(TOKENIZED_DATASET_SAVE_PATH):
         print(f"\nLoading tokenized dataset with labels from local path: {TOKENIZED_DATASET_SAVE_PATH}")
@@ -87,8 +87,6 @@ if __name__ == '__main__':
 
     print("\nFinal Tokenized Datasets with Labels:")
     print(tokenized_datasets_with_labels)
-    #print("First tokenized train example with labels:")
-    #print(tokenized_datasets_with_labels["train"][0])
 
     # --- Subsetting the datasets for training/evaluation if SUBSET_SIZE is active ---
     train_dataset_for_trainer = tokenized_datasets_with_labels["train"]
@@ -127,7 +125,7 @@ if __name__ == '__main__':
     )
 
     '''
-    # --- Step 3: Model Training (Uncommented and Enabled) ---
+    # --- Model Training ---
     print("\n--- Starting Model Training Phase ---")
     train_qa_model(
         model_name=MODEL_NAME,
@@ -148,8 +146,7 @@ if __name__ == '__main__':
         no_answer_threshold=NO_ANSWER_THRESHOLD
     )
     print("\n--- Model Training Complete ---")
-    '''
-
+    
     print("\n--- Baseline Model Size ---")
     measure_model_size(FINE_TUNED_MODEL_SAVE_PATH)
     
@@ -182,11 +179,9 @@ if __name__ == '__main__':
     print("\n--- Starting Post-Training Quantization and Evaluation ---")
     
     # Apply dynamic quantization
-    quantized_model = quantize_PTQ_model(
-        model_path=FINE_TUNED_MODEL_SAVE_PATH,
-        quantized_model_save_path=QUANTIZED_MODEL_SAVE_PATH
-    )
+    quantized_model = quantize_PTQ_model(model_path=FINE_TUNED_MODEL_SAVE_PATH, quantized_model_save_path=QUANTIZED_MODEL_SAVE_PATH)
 
+    
     if quantized_model: # Only proceed if quantization was successful
         # Measure quantized model size
         print("\n--- Quantized Model Size ---")
@@ -218,3 +213,42 @@ if __name__ == '__main__':
             no_answer_threshold=NO_ANSWER_THRESHOLD # Use the same threshold
         )
     print("\n--- Post-Training Quantization Complete ---")
+'''
+    print("\n--- Starting Pruning and Evaluation ---")
+
+    pruned_model = prune_PTUP_model(
+        model_path=FINE_TUNED_MODEL_SAVE_PATH,
+        pruned_model_save_path=PRUNED_MODEL_SAVE_PATH,
+        pruning_amount=PRUNING_AMOUNT,
+        model_name=MODEL_NAME
+    )
+
+    if pruned_model:
+        print("\n--- Pruned Model Size ---")
+        measure_model_size(PRUNED_MODEL_SAVE_PATH)
+
+        print("\n--- Benchmarking Pruned Model Inference Speed ---")
+        pruned_gpu_samples_per_sec = benchmark_inference_speed(
+            model_path=PRUNED_MODEL_SAVE_PATH,
+            tokenizer_path=PRUNED_MODEL_SAVE_PATH,
+            is_quantized=False, # Pruning doesn't quantize
+            device_str="cuda" if torch.cuda.is_available() else "cpu", # Pruned model can still run on GPU
+            batch_size=PER_DEVICE_EVAL_BATCH_SIZE,
+            sequence_length=MAX_SEQUENCE_LENGTH
+        )
+        print(f"Pruned Samples/Sec ({'GPU' if torch.cuda.is_available() else 'CPU'}): {pruned_gpu_samples_per_sec:.2f}")
+
+        print("\n--- Pruned Model Evaluation ---")
+        evaluate_fine_tuned_model(
+            model_path=PRUNED_MODEL_SAVE_PATH,
+            tokenizer_path=PRUNED_MODEL_SAVE_PATH,
+            eval_dataset=eval_dataset_for_trainer,
+            original_eval_examples=original_eval_examples_for_metrics,
+            compute_metrics_fn=bound_compute_metrics_for_trainer,
+            per_device_eval_batch_size=PER_DEVICE_EVAL_BATCH_SIZE,
+            fp16=USE_FP16, # Pruned model should still use FP16 if baseline did
+            is_quantized=False,
+            output_dir=os.path.join(TRAINER_OUTPUT_DIR, "pruned_eval_results"),
+            no_answer_threshold=NO_ANSWER_THRESHOLD
+        )
+    print("\n--- Post Training Unstructured Pruning Complete ---")

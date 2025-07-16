@@ -8,7 +8,8 @@ TOKENIZER_SAVE_PATH = "./distilbert_tokenizer_local"
 TOKENIZED_DATASET_SAVE_PATH = "./squad_tokenized_dataset"
 FINE_TUNED_MODEL_SAVE_PATH = "./fine_tuned_baseline_model"
 TRAINER_OUTPUT_DIR = "./results"
-QUANTIZED_MODEL_SAVE_PATH = "./PTQ_model" # Path to save the quantized model
+QUANTIZED_MODEL_SAVE_PATH = "./PTQ_model"
+PRUNED_MODEL_SAVE_PATH = "./PTUP_model"
 
 # Training Hyperparameters
 NUM_TRAIN_EPOCHS = 10
@@ -18,6 +19,9 @@ LEARNING_RATE = 2e-5
 WEIGHT_DECAY = 0.01
 USE_FP16 = True # Set to True if your GPU supports it (RTX 3050 does)
 NO_ANSWER_THRESHOLD = 15.03 # Start with 0.0, then try 15.03 after full training.
+
+# Quantization and Pruning Settings
+PRUNING_AMOUNT = 0.2 # Percentage of weights to prune (20%)
 
 # Multiprocessing
 NUM_PROCESSES_FOR_MAP = 6 
