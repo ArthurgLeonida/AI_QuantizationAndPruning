@@ -2,6 +2,7 @@ import torch
 import os
 from transformers import AutoModelForQuestionAnswering, AutoTokenizer # Keep AutoConfig for config loading
 import glob
+import time
 
 def quantize_PTQ_model(model_path: str, quantized_model_save_path: str):
     """
@@ -49,6 +50,7 @@ def quantize_PTQ_model(model_path: str, quantized_model_save_path: str):
     return quantized_model_obj
 
 def measure_model_size(model_path: str):
+
     """
     Measures the size of a saved model in Megabytes, looking for common weight file names.
     This function is adapted to handle both 'model.safetensors' and 'pytorch_model.bin'.
@@ -98,3 +100,89 @@ def measure_model_size(model_path: str):
         # This case should ideally not be hit if the prior checks are exhaustive
         print(f"Error: Model file '{actual_model_file_path}' not found after selection logic.")
         return 0.0
+    
+def benchmark_inference_speed(
+    model_path: str,
+    tokenizer_path: str, # Need tokenizer for vocab_size and sep_token_id
+    is_quantized: bool = False,
+    device_str: str = "cpu", # Use "cpu" or "cuda"
+    batch_size: int = 16,
+    sequence_length: int = 512,
+    num_warmup_runs: int = 10,
+    num_timed_runs: int = 100,
+):
+    """
+    Benchmarks the pure inference speed of a model on a specified device.
+
+    Args:
+        model_path (str): Path to the saved model.
+        tokenizer_path (str): Path to the tokenizer (for model config like vocab_size).
+        is_quantized (bool): True if loading a quantized model.
+        device_str (str): Target device for inference: "cpu" or "cuda".
+        batch_size (int): Batch size for inference.
+        sequence_length (int): Max sequence length for dummy input.
+        num_warmup_runs (int): Number of runs to warm up the GPU/CPU.
+        num_timed_runs (int): Number of runs to time.
+
+    Returns:
+        float: Samples per second (inferences * batch_size / total_time).
+    """
+    if not os.path.isdir(model_path) or not os.path.isdir(tokenizer_path):
+        print(f"Error: Model or tokenizer directory not found at {model_path} or {tokenizer_path}.")
+        return 0.0
+
+    print(f"\nBenchmarking '{os.path.basename(model_path)}' on {device_str.upper()}...")
+    
+    # Load tokenizer to get vocab_size (needed for dummy input) and potentially for config
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
+    
+    # Load model (logic needs to differentiate quantized vs non-quantized)
+    if is_quantized:
+        try:
+            # Load the entire quantized model object directly from the .pth file.
+            model = torch.load(os.path.join(model_path, "quantized_model.pth"), map_location=torch.device("cpu"), weights_only=False)
+            model.eval() # Set model to evaluation mode
+            model.to(torch.device("cpu")) # Quantized model MUST stay on CPU
+            if device_str == "cuda": # Warn if user tries to benchmark quantized on CUDA
+                print("WARNING: Quantized dynamic model cannot run on CUDA backend with this PyTorch build. Benchmarking will proceed on CPU.")
+                device_str = "cpu" # Force CPU for correct result
+        except Exception as e:
+            print(f"Error loading quantized model for benchmarking from {model_path}: {e}")
+            return 0.0
+    else:
+        # Load full-precision model
+        model = AutoModelForQuestionAnswering.from_pretrained(model_path)
+        model.eval() # Set model to evaluation mode
+        # Move to GPU if requested and available, else CPU
+        if device_str == "cuda" and torch.cuda.is_available():
+            model.to(torch.device("cuda"))
+        else:
+            model.to(torch.device("cpu"))
+
+    # Generate dummy input tensors on the model's actual device
+    dummy_input_ids = torch.randint(0, tokenizer.vocab_size, (batch_size, sequence_length), device=model.device)
+    dummy_attention_mask = torch.ones(batch_size, sequence_length, device=model.device)
+    
+    # Warm-up runs (to prime GPU, caches, etc.)
+    with torch.no_grad():
+        for _ in range(num_warmup_runs):
+            _ = model(input_ids=dummy_input_ids, attention_mask=dummy_attention_mask)
+        # Synchronize GPU for accurate timing after warm-up
+        if model.device.type == 'cuda':
+            torch.cuda.synchronize()
+
+    # Timed runs
+    start_time = time.time()
+    with torch.no_grad():
+        for _ in range(num_timed_runs):
+            _ = model(input_ids=dummy_input_ids, attention_mask=dummy_attention_mask)
+        # Synchronize GPU again before stopping timer
+        if model.device.type == 'cuda':
+            torch.cuda.synchronize()
+    end_time = time.time()
+
+    total_time_seconds = end_time - start_time
+    samples_per_second = (batch_size * num_timed_runs) / total_time_seconds
+    
+    print(f"Benchmarking complete. Samples per second on {model.device.type.upper()}: {samples_per_second:.2f}")
+    return samples_per_second
