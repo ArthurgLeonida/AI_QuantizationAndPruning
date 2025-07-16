@@ -10,6 +10,7 @@ FINE_TUNED_MODEL_SAVE_PATH = "./fine_tuned_baseline_model"
 TRAINER_OUTPUT_DIR = "./results"
 QUANTIZED_MODEL_SAVE_PATH = "./PTQ_model"
 PRUNED_MODEL_SAVE_PATH = "./PTUP_model"
+QUANTIZED_STATIC_MODEL_SAVE_PATH = "./PTQ_static_model"
 
 # Training Hyperparameters
 NUM_TRAIN_EPOCHS = 10

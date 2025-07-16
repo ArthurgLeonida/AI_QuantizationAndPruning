@@ -1,9 +1,11 @@
 import torch
 import os
-from transformers import AutoModelForQuestionAnswering, AutoTokenizer # Keep AutoConfig for config loading
-import glob
 import time
 import torch.nn.utils.prune as prune
+import random
+import glob
+from transformers import AutoModelForQuestionAnswering, AutoTokenizer
+from tqdm.auto import tqdm
 
 
 def quantize_PTQ_model(model_path: str, quantized_model_save_path: str):
@@ -48,6 +50,86 @@ def quantize_PTQ_model(model_path: str, quantized_model_save_path: str):
     tokenizer = AutoTokenizer.from_pretrained(model_path) 
     tokenizer.save_pretrained(quantized_model_save_path)
     print("Quantized model config and tokenizer saved.")
+    
+    return quantized_model_obj
+
+def quantize_PTSQ_model(
+    model_path: str, 
+    quantized_model_save_path: str,
+    calibration_dataset, # A Dataset for calibration (a small subset of training data)
+    tokenizer # Tokenizer needed for calibration data processing in eval_loop
+):
+    """
+    Applies Post-Training Static Quantization (PTSQ) to a fine-tuned QA model.
+    This quantizes both weights and activations to INT8 using a calibration dataset.
+
+    Args:
+        model_path (str): Path to the directory containing the full-precision fine-tuned model.
+        quantized_model_save_path (str): Path to save the statically quantized model.
+        calibration_dataset (datasets.Dataset): A small subset of representative data for calibration.
+        tokenizer: The tokenizer object (needed for data processing in evaluation loop).
+    """
+    if not os.path.isdir(model_path):
+        print(f"Error: Full-precision model not found at {model_path}.")
+        return None
+
+    print(f"\nLoading full-precision model from: {model_path} for static quantization...")
+    # Load model (make sure it's on CPU before quantization for static)
+    model = AutoModelForQuestionAnswering.from_pretrained(model_path)
+    model.eval() # Set model to evaluation mode (crucial for quantization)
+    model.to(torch.device("cpu")) # Ensure model is on CPU for static quantization
+
+    # --- 1. Prepare the model for static quantization ---
+    # This inserts observers that collect statistics (e.g., min/max ranges for activations)
+    print("Preparing model for static quantization (inserting observers)...")
+    model.qconfig = torch.quantization.get_default_qconfig('fbgemm') # 'fbgemm' for server CPUs, 'qnnpack' for mobile CPUs
+    # You might need to fuse modules for better performance (e.g., Conv-ReLU, Linear-ReLU)
+    # For Transformers, fusing is less common automatically but can be done manually.
+    # For now, we rely on default observers.
+    torch.quantization.prepare(model, inplace=True)
+    print("Model prepared for static quantization.")
+
+    # --- 2. Calibrate the model ---
+    # Run a few batches of representative data through the model to collect statistics.
+    print(f"Calibrating model with {len(calibration_dataset)} examples...")
+    
+    # Create a DataLoader for calibration
+    # Ensure calibration_dataset provides input_ids and attention_mask
+    calibration_loader = torch.utils.data.DataLoader(
+        calibration_dataset, 
+        batch_size=16, # Use a typical batch size for calibration
+        shuffle=False, # Order doesn't matter for calibration
+        num_workers=0 # No multiprocessing for calibration to avoid complexity
+    )
+
+    with torch.no_grad():
+        for i, batch in enumerate(tqdm(calibration_loader, desc="Calibrating")):
+            # Move batch to CPU (model is on CPU)
+            input_ids = batch['input_ids'].to(torch.device("cpu"))
+            attention_mask = batch['attention_mask'].to(torch.device("cpu"))
+            model(input_ids=input_ids, attention_mask=attention_mask) # Forward pass only
+
+    print("Model calibration complete.")
+
+    # --- 3. Convert the model to a quantized version ---
+    # This uses the collected statistics to quantize weights and insert de/quantize ops.
+    print("Converting model to statically quantized version...")
+    quantized_model_obj = torch.quantization.convert(model, inplace=True)
+    print("Model converted to static quantization.")
+
+    # --- Save the statically quantized model ---
+    if not os.path.exists(quantized_model_save_path):
+        os.makedirs(quantized_model_save_path)
+
+    # Save the entire quantized model object directly (recommended for torch.quantization)
+    torch.save(quantized_model_obj, os.path.join(quantized_model_save_path, "quantized_model_static.pth"))
+    print(f"Statically quantized model object saved to: {os.path.join(quantized_model_save_path, 'quantized_model_static.pth')}")
+
+    # Save original config and tokenizer (still needed for AutoTokenizer to load from path)
+    model.config.save_pretrained(quantized_model_save_path)
+    tokenizer_obj = AutoTokenizer.from_pretrained(model_path)
+    tokenizer_obj.save_pretrained(quantized_model_save_path)
+    print("Statically quantized model config and tokenizer saved.")
     
     return quantized_model_obj
 
