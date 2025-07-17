@@ -104,8 +104,8 @@ def postprocess_qa_predictions(
         no_answer_probability = min_null_score if min_null_score is not None else -float('inf') 
 
         # The decision now uses the 'no_answer_threshold'
-        if no_answer_probability > best_answer["score"] + no_answer_threshold: # <--- CHANGE HERE
-            final_prediction_text = "" # Predict empty string for no answer
+        if no_answer_probability > best_answer["score"] + no_answer_threshold:
+            final_prediction_text = "" 
         else:
             final_prediction_text = best_answer["text"]
 
