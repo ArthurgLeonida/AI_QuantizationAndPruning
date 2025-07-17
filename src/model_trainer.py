@@ -1,7 +1,6 @@
 # src/model_trainer.py
-import torch
 import os
-from transformers import AutoModelForQuestionAnswering, TrainingArguments, Trainer, DataCollatorWithPadding
+from transformers import AutoModelForQuestionAnswering, TrainingArguments, Trainer
 from functools import partial # Keep this import
 
 def train_qa_model(
@@ -46,12 +45,10 @@ def train_qa_model(
     model = AutoModelForQuestionAnswering.from_pretrained(model_name)
     print("Model loaded successfully.")
 
-    data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
-
     print("\nSetting up Training Arguments...")
     training_args = TrainingArguments(
         output_dir=output_dir,
-        eval_strategy="epoch", # Corrected argument name
+        eval_strategy="epoch",
         learning_rate=learning_rate,
         per_device_train_batch_size=per_device_train_batch_size,
         per_device_eval_batch_size=per_device_eval_batch_size,
@@ -61,12 +58,12 @@ def train_qa_model(
         logging_steps=500,
         save_strategy="epoch",
         load_best_model_at_end=True,
-        metric_for_best_model="f1", # Use F1 as the metric for best model
-        greater_is_better=True,     # F1 is better when higher
+        metric_for_best_model="f1", 
+        greater_is_better=True,     
         push_to_hub=False,
         report_to="tensorboard",
-        fp16=fp16, # Use mixed-precision training if enabled
-        max_steps=max_train_steps if max_train_steps != -1 else -1, # Pass max_train_steps
+        fp16=fp16, # Use mixed-precision training if enabled (check hardware compatibility)
+        max_steps=max_train_steps if max_train_steps != -1 else -1,
     )
 
     print("\nInitializing Trainer...")
@@ -80,7 +77,7 @@ def train_qa_model(
         compute_metrics=partial(
             compute_metrics_fn,
             original_examples=original_eval_examples,
-            tokenized_features=eval_dataset, # This is your tokenized validation set
+            tokenized_features=eval_dataset,
             tokenizer=tokenizer,
             no_answer_threshold=no_answer_threshold
         ),

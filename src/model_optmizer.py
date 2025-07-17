@@ -21,7 +21,7 @@ def quantize_PTQ_model(model_path: str, quantized_model_save_path: str):
 
     print(f"\nLoading full-precision model from: {model_path} for quantization...")
     model = AutoModelForQuestionAnswering.from_pretrained(model_path)
-    model.eval() # Set model to evaluation mode
+    model.eval()
 
     print("Applying dynamic quantization (FP32 -> INT8) to the model...")
     quantized_model_obj = torch.quantization.quantize_dynamic(
@@ -34,12 +34,11 @@ def quantize_PTQ_model(model_path: str, quantized_model_save_path: str):
     if not os.path.exists(quantized_model_save_path):
         os.makedirs(quantized_model_save_path)
 
-    # --- FIX: Save the entire quantized model object directly ---
+    # --- Save the entire quantized model object directly ---
     # This is the recommended way to save dynamically quantized models in PyTorch.
     # It saves the model's structure and state.
     torch.save(quantized_model_obj, os.path.join(quantized_model_save_path, "quantized_model.pth"))
     print(f"Quantized model object saved to: {os.path.join(quantized_model_save_path, 'quantized_model.pth')}")
-    # --- END FIX ---
 
     # Save model config (from original model) and tokenizer (from original model path)
     # These are still needed even if loading the model object directly, for consistency
@@ -75,15 +74,13 @@ def prune_PTUP_model(
         return None
 
     print(f"\nLoading model from: {model_path} for pruning...")
-    # Load the model. AutoModelForQuestionAnswering will handle .safetensors or .bin
     model = AutoModelForQuestionAnswering.from_pretrained(model_path)
-    model.eval() # It's good practice to prune models in evaluation mode
+    model.eval()
 
     # --- Apply L1 Unstructured Pruning ---
     print(f"Applying L1 unstructured pruning ({pruning_amount*100:.0f}%) to linear layers...")
 
     # Define the modules (layers) and the attributes (weights) within them to prune.
-    # For DistilBERT, we target the weight matrices of its linear layers.
     parameters_to_prune = []
     
     # Prune transformer layers (q_lin, k_lin, v_lin, out_lin, ffn.lin1, ffn.lin2 in each layer)
@@ -102,20 +99,14 @@ def prune_PTUP_model(
 
     # Apply pruning to the specified parameters
     for module, name in parameters_to_prune:
-        # prune.l1_unstructured sets the 'name_orig' and 'name_mask' attributes
-        # and registers a forward pre-hook.
+        # print(f"Pruning {name} of {module.__class__.__name__}...")
         prune.l1_unstructured(module, name=name, amount=pruning_amount)
 
     # --- Remove pruning reparameterization (make it permanent) ---
-    # This step is crucial to actually remove the pruned weights and reduce the model size.
-    # It removes the masks and makes the pruned weights zero, replacing the original 'weight' attribute.
     print("Removing pruning reparameterization to make pruning permanent...")
     for module, name in parameters_to_prune:
         prune.remove(module, name)
     
-    # Note: After prune.remove(), the actual number of non-zero parameters is reduced.
-    # Some tools (like count_parameters) might need to be re-run to confirm.
-
     # --- Save the pruned model ---
     if not os.path.exists(pruned_model_save_path):
         os.makedirs(pruned_model_save_path)
@@ -124,7 +115,6 @@ def prune_PTUP_model(
     # Save the pruned model using save_pretrained, which correctly handles config/weights.
     model.save_pretrained(pruned_model_save_path)
 
-    # Copy tokenizer (it's the same as the original fine-tuned model's tokenizer)
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     tokenizer.save_pretrained(pruned_model_save_path)
     print("Pruned model and tokenizer saved.")
@@ -148,7 +138,6 @@ def calculate_sparsity(model_path: str) -> float:
 
     try:
         # Load the model to inspect its weights.
-        # This will load either the full-precision baseline or the pruned model.
         model = AutoModelForQuestionAnswering.from_pretrained(model_path)
     except Exception as e:
         print(f"Error loading model for sparsity calculation from '{model_path}': {e}")
@@ -160,12 +149,9 @@ def calculate_sparsity(model_path: str) -> float:
     
     # Iterate over all named parameters in the model
     for name, param in model.named_parameters():
-        # Focus on weight matrices (typically contain 'weight' in their name)
-        # and exclude biases if not pruned, or include all trainable parameters.
-        # For L1Unstructured, it typically applies to weight matrices.
-        if 'weight' in name and param.dim() > 1: # Exclude 1D biases, focus on layers often pruned
-            total_elements += param.numel() # Count total number of elements in the tensor
-            zero_elements += torch.sum(param == 0).item() # Count elements exactly equal to 0
+        if 'weight' in name and param.dim() > 1: # focus on layers often pruned
+            total_elements += param.numel() 
+            zero_elements += torch.sum(param == 0).item()
 
     if total_elements == 0:
         sparsity_percentage = 0.0
@@ -201,9 +187,6 @@ def measure_model_size(model_path: str):
     elif os.path.exists(os.path.join(model_path, "pytorch_model.bin")):
         model_file_name = "pytorch_model.bin"
     else:
-        # Fallback for other common weight files, if specific names are not present
-        # This globbing handles cases where the model might be saved with a different name
-        # but still uses .safetensors or .bin extensions.
         safetensors_files = glob.glob(os.path.join(model_path, "*.safetensors"))
         pytorch_bin_files = glob.glob(os.path.join(model_path, "*.bin"))
         
@@ -223,13 +206,12 @@ def measure_model_size(model_path: str):
         print(f"Model size at '{model_path}' ({model_file_name}): {size_mb:.2f} MB")
         return size_mb
     else:
-        # This case should ideally not be hit if the prior checks are exhaustive
         print(f"Error: Model file '{actual_model_file_path}' not found after selection logic.")
         return 0.0
     
 def benchmark_inference_speed(
     model_path: str,
-    tokenizer_path: str, # Need tokenizer for vocab_size and sep_token_id
+    tokenizer_path: str, 
     is_quantized: bool = False,
     device_str: str = "cpu", # Use "cpu" or "cuda"
     batch_size: int = 16,
@@ -267,19 +249,18 @@ def benchmark_inference_speed(
         try:
             # Load the entire quantized model object directly from the .pth file.
             model = torch.load(os.path.join(model_path, "quantized_model.pth"), map_location=torch.device("cpu"), weights_only=False)
-            model.eval() # Set model to evaluation mode
-            model.to(torch.device("cpu")) # Quantized model MUST stay on CPU
-            if device_str == "cuda": # Warn if user tries to benchmark quantized on CUDA
+            model.eval() 
+            model.to(torch.device("cpu"))
+            if device_str == "cuda":
                 print("WARNING: Quantized dynamic model cannot run on CUDA backend with this PyTorch build. Benchmarking will proceed on CPU.")
-                device_str = "cpu" # Force CPU for correct result
+                device_str = "cpu"
         except Exception as e:
             print(f"Error loading quantized model for benchmarking from {model_path}: {e}")
             return 0.0
     else:
-        # Load full-precision model
+        # Load baseline model or pruned model
         model = AutoModelForQuestionAnswering.from_pretrained(model_path)
-        model.eval() # Set model to evaluation mode
-        # Move to GPU if requested and available, else CPU
+        model.eval()
         if device_str == "cuda" and torch.cuda.is_available():
             model.to(torch.device("cuda"))
         else:
@@ -289,7 +270,7 @@ def benchmark_inference_speed(
     dummy_input_ids = torch.randint(0, tokenizer.vocab_size, (batch_size, sequence_length), device=model.device)
     dummy_attention_mask = torch.ones(batch_size, sequence_length, device=model.device)
     
-    # Warm-up runs (to prime GPU, caches, etc.)
+    # Warm-up runs to ensure model is ready
     with torch.no_grad():
         for _ in range(num_warmup_runs):
             _ = model(input_ids=dummy_input_ids, attention_mask=dummy_attention_mask)
