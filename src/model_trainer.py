@@ -1,15 +1,14 @@
-# src/model_trainer.py
 import os
 from transformers import AutoModelForQuestionAnswering, TrainingArguments, Trainer
-from functools import partial # Keep this import
+from functools import partial 
 
 def train_qa_model(
     model_name: str,
     train_dataset,
     eval_dataset,
-    original_eval_examples, # Original examples are needed for metrics, passed from main.py
+    original_eval_examples,
     tokenizer,
-    compute_metrics_fn, # This is the base function from metrics_utils.py (compute_squad_metrics)
+    compute_metrics_fn,
     output_dir: str = "./results",
     num_train_epochs: int = 3,
     per_device_train_batch_size: int = 16,

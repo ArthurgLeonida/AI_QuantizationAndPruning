@@ -13,7 +13,7 @@ def evaluate_fine_tuned_model(
     fp16: bool = False,
     output_dir: str = "./eval_results",
     no_answer_threshold: float = 0.0,
-    is_quantized: bool = False, # Flag to indicate if the model is quantized
+    is_quantized: bool = False,
 ):
     """
     Loads a fine-tuned or quantized Question Answering model and evaluates its performance.
@@ -26,43 +26,40 @@ def evaluate_fine_tuned_model(
     print(f"\nLoading model from: {model_path}")
     
     if is_quantized:
-        # --- FIX for loading dynamically quantized models ---
         # Load the entire quantized model object directly from the .pth file.
         try:
             model = torch.load(os.path.join(model_path, "quantized_model.pth"), map_location=torch.device("cpu"), weights_only=False)
-            model.eval() # Set model to evaluation mode
-            model.to(torch.device("cpu")) # Explicitly ensure it's on CPU (dynamic quantization is CPU-optimized)
+            model.eval()
+            model.to(torch.device("cpu")) # dynamic quantization is CPU-optimized
             print("Quantized model object loaded successfully.")
         except Exception as e:
             print(f"Error loading quantized model object from {os.path.join(model_path, 'quantized_model.pth')}: {e}")
             print("Ensure it was saved as a full object via torch.save(model_obj, path).")
-            return None # Return None if loading fails
+            return None 
 
     else:
         # --- Loading for Full-Precision (Non-Quantized) Models ---
-        # Use standard AutoModel.from_pretrained for full-precision models.
         print("Loading full-precision model...")
         model = AutoModelForQuestionAnswering.from_pretrained(model_path)
-        model.eval() # Set model to evaluation mode
-        # Trainer will handle moving this model to GPU if fp16=True and CUDA is available.
+        model.eval()
         print("Full-precision model loaded successfully.")
 
     print(f"Loading tokenizer from: {tokenizer_path}")
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path) # AutoTokenizer still works with saved dir
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
     print("Tokenizer loaded successfully.")
 
     print("\nSetting up Evaluation Arguments...")
     eval_args = TrainingArguments(
         output_dir=output_dir,
         per_device_eval_batch_size=per_device_eval_batch_size,
-        fp16=fp16, # Pass fp16 as configured (True for GPU full-precision, False for CPU/quantized)
+        fp16=fp16,
         report_to="tensorboard",
         no_cuda=is_quantized,
     )
 
     print("\nInitializing Trainer for evaluation...")
     trainer = Trainer(
-        model=model, # Pass the loaded model (object)
+        model=model,
         args=eval_args,
         eval_dataset=eval_dataset,
         processing_class=tokenizer,

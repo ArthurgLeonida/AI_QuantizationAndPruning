@@ -1,10 +1,8 @@
-# src/metrics_utils.py
 from evaluate import load
 import collections
 import numpy as np
 from tqdm.auto import tqdm # For progress bar during post-processing
 
-# Load the SQuAD v2.0 metric once (it will be cached after first download)
 squad_metric = load("squad_v2")
 
 def postprocess_qa_predictions(

@@ -1,6 +1,6 @@
 import torch
 import os
-from transformers import AutoModelForQuestionAnswering, AutoTokenizer # Keep AutoConfig for config loading
+from transformers import AutoModelForQuestionAnswering, AutoTokenizer
 import glob
 import time
 import torch.nn.utils.prune as prune

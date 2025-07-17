@@ -1,78 +1,45 @@
-# Efficient Question Answering: Evaluating Optimization Techniques on SQuAD with DistilBERT
+# Evaluating the Impact of Quantization and Pruning on DistilBERT for Question Answering
 
-## 1. Overview
+This project investigates the application and impact of model optimization techniques, specifically **Post-Training Dynamic Quantization (PTQ)** and **Post-Training Unstructured Pruning (PTUP)**, on a DistilBERT model. The model is fine-tuned for Question Answering (QA) on the SQuAD v2.0 dataset, with a focus on understanding the trade-offs between model performance, size, and inference speed.
 
-This project focuses on exploring and evaluating various optimization techniques to enhance the efficiency of Question Answering (QA) models, specifically using **DistilBERT** on the **Stanford Question Answering Dataset (SQuAD)**.
+## Features
 
-Large language models are powerful but computationally intensive. The primary goal of this project is to:
-* Implement and apply different model optimization strategies (e.g., quantization, pruning, knowledge distillation – *you can list specific ones here as you implement them*).
-* Fine-tune DistilBERT for extractive QA on the SQuAD dataset.
-* Quantitatively assess the impact of these optimizations on model performance (accuracy, F1 score) and efficiency (inference speed, model size).
+* **Efficient Data Pipeline:** Leverages Hugging Face's `datasets` library for robust and efficient data loading, tokenization, label alignment, multiprocessing, and local caching of processed data.
+* **Modular Code Structure:** Project is organized into distinct modules (`src/`, `config.py`) for clarity, maintainability, and reusability.
+* **Baseline Model Training & Evaluation:** Fine-tunes a DistilBERT baseline model on SQuAD v2.0 using `transformers.Trainer`, providing comprehensive evaluation metrics (F1, EM, HasAns/NoAns breakdown).
+* **Post-Training Dynamic Quantization (PTQ):** Implements dynamic quantization to reduce model size and observe its impact on performance and inference speed.
+* **Post-Training Unstructured Pruning (PTUP):** Applies unstructured pruning to introduce sparsity in the model and assess its effects on performance, size, and speed.
+* **Automated Benchmarking:** Includes dedicated functions for precise measurement of model size and inference speed.
 
-## 2. Optimization Techniques Explored
+## Setup
 
-This section will detail the specific optimization techniques implemented and evaluated within this project.
-
-* **Quantization:**
-    * *Description: (e.g., Reducing precision of weights/activations from float32 to int8/int4).*
-    * *Implemented Methods: (e.g., Post-Training Quantization, Quantization-Aware Training).*
-* **Pruning:**
-    * *Description: (e.g., Removing redundant connections or neurons from the network).*
-    * *Implemented Methods: (e.g., Magnitude Pruning, Structured Pruning).*
-* **Knowledge Distillation:**
-    * *Description: (e.g., Training a smaller 'student' model to mimic the behavior of a larger 'teacher' model).*
-    * *Implemented Methods: (e.g., Soft-label distillation).*
-* *(Add more techniques here as you integrate them)*
-
-## 3. Dataset
-
-The project utilizes the **Stanford Question Answering Dataset (SQuAD)**, a reading comprehension dataset consisting of questions posed by crowdworkers on a set of Wikipedia articles, where the answer to every question is a segment of text from the corresponding reading passage.
-
-* **SQuAD 1.1:** Focuses solely on extractive answers present in the text.
-* **SQuAD 2.0:** Includes unanswerable questions, requiring the model to determine if no answer is present. (*Specify which version you are using or planning to use*).
-
-## 4. Evaluation Strategy
-
-Model performance will be rigorously evaluated using standard Question Answering metrics:
-
-* **Exact Match (EM):** Measures the percentage of predictions that match the ground truth answer exactly.
-* **F1 Score:** Measures the overlap between the prediction and the ground truth answer, calculated as a harmonic mean of precision and recall.
-
-Efficiency metrics such as model size (MB) and inference time (ms) will also be recorded and compared across optimized and baseline models.
-
-## 5. Project Structure
-
-* `main.py`: Main script for fine-tuning baseline and optimized models, and running evaluation.
-* `src/`:
-    * `data_loader.py`: Handles loading the SQuAD dataset.
-    * `tokenizer_utils.py`: Contains the `prepare_squad_features` function for robust tokenization and answer span alignment.
-* `requirements.txt`: Lists all Python dependencies.
-* `.gitignore`: Specifies files/folders to ignore from version control (e.g., large models, tokenized datasets, logs).
-* `README.md`: This project overview.
-
-## 6. Setup
-
-1.  **Clone this repository:**
+1.  **Clone the repository:**
     ```bash
     git clone [https://github.com/ArthurgLeonida/AI_QuantizationAndPruning.git](https://github.com/ArthurgLeonida/AI_QuantizationAndPruning.git)
-    cd Project_QntzAndPrun
+    cd AI_QuantizationAndPruning
     ```
-    (Replace `Project_QntzAndPrun` with your actual folder name if different)
 
-2.  **Create a virtual environment (recommended):**
+2.  **Create and activate a virtual environment:**
     ```bash
     python -m venv venv
-    source venv/bin/activate    # On Windows: venv\Scripts\activate
+    # On Windows:
+    .\venv\Scripts\activate
+    # On macOS/Linux:
+    source venv/bin/activate
     ```
 
 3.  **Install dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
+    *(Note: Ensure you install the CUDA-enabled PyTorch version compatible with your GPU for optimal performance, as per instructions at PyTorch.org.)*
 
-## 7. Usage
+4.  **Configure `config.py`:**
+    Review and adjust hyperparameters and paths in `config.py` as needed (e.g., `NUM_TRAIN_EPOCHS`, `SUBSET_SIZE`, `PRUNING_AMOUNT`).
 
-To run the full pipeline (data preparation, model fine-tuning, and evaluation):
+## Usage
+
+To run the full project pipeline (data preparation, baseline training, and optimization evaluations):
 
 ```bash
 python main.py

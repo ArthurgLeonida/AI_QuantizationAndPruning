@@ -17,14 +17,14 @@ PER_DEVICE_TRAIN_BATCH_SIZE = 16
 PER_DEVICE_EVAL_BATCH_SIZE = 16
 LEARNING_RATE = 2e-5
 WEIGHT_DECAY = 0.01
-USE_FP16 = True # Set to True if your GPU supports it (RTX 3050 does)
-NO_ANSWER_THRESHOLD = 15.03 # Start with 0.0, then try 15.03 after full training.
+USE_FP16 = True # Set to True if your GPU supports it (my RTX 3050 does)
+NO_ANSWER_THRESHOLD = 15.03
 
 # Quantization and Pruning Settings
 PRUNING_AMOUNT = 0.2 # Percentage of weights to prune (20%)
 
 # Multiprocessing
-NUM_PROCESSES_FOR_MAP = 6 
+NUM_PROCESSES_FOR_MAP = 6 # Number of processes for datasets.map() (adjust based on your CPU cores)
 
 # Subset for quick testing (set to -1 or a very large number for full dataset)
-SUBSET_SIZE = -1 # For training quickly. Set to -1 or large number for full dataset.
+SUBSET_SIZE = -1

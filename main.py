@@ -2,14 +2,12 @@ import multiprocessing
 import os
 from functools import partial
 import torch
-from datasets import load_dataset, load_from_disk
 # Import modules from src directory
-from src.tokenizer_utils import get_tokenizer, prepare_squad_features
 from src.model_trainer import train_qa_model 
 from src.metric_utils import compute_squad_metrics 
 from src.model_evaluator import evaluate_fine_tuned_model 
 from src.model_optmizer import quantize_PTQ_model, measure_model_size, benchmark_inference_speed, prune_PTUP_model, calculate_sparsity
-from src.data_loader import load_squad_dataset_dict, get_subsetted_datasets, load_and_prepare_data
+from src.data_loader import get_subsetted_datasets, load_and_prepare_data
 # Import configuration from config.py
 from config import (
     MODEL_NAME,
@@ -183,7 +181,7 @@ if __name__ == '__main__':
         pruned_gpu_samples_per_sec = benchmark_inference_speed(
             model_path=PRUNED_MODEL_SAVE_PATH,
             tokenizer_path=PRUNED_MODEL_SAVE_PATH,
-            is_quantized=False, # Pruning doesn't quantize
+            is_quantized=False,
             device_str="cuda" if torch.cuda.is_available() else "cpu", # Pruned model can still run on GPU
             batch_size=PER_DEVICE_EVAL_BATCH_SIZE,
             sequence_length=MAX_SEQUENCE_LENGTH
