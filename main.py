@@ -8,7 +8,7 @@ from src.tokenizer_utils import get_tokenizer, prepare_squad_features
 from src.model_trainer import train_qa_model # For training the model
 from src.metric_utils import compute_squad_metrics # For computing evaluation metrics
 from src.model_evaluator import evaluate_fine_tuned_model # For evaluating already fine-tuned model
-from src.model_optmizer import quantize_PTQ_model, measure_model_size, benchmark_inference_speed, prune_PTUP_model, calculate_sparsity, quantize_PTSQ_model
+from src.model_optmizer import quantize_PTQ_model, measure_model_size, benchmark_inference_speed, prune_PTUP_model, calculate_sparsity
 # Import configuration from config.py
 from config import (
     MODEL_NAME,
@@ -29,8 +29,7 @@ from config import (
     NO_ANSWER_THRESHOLD,
     QUANTIZED_MODEL_SAVE_PATH,
     PRUNED_MODEL_SAVE_PATH,
-    PRUNING_AMOUNT,
-    QUANTIZED_STATIC_MODEL_SAVE_PATH
+    PRUNING_AMOUNT
 )
 
 
@@ -179,7 +178,7 @@ if __name__ == '__main__':
     )
     print("\n--- Evaluation Complete ---")
     
-    
+    '''
     # --- Step 5: Post-Training Quantization (PTQ) and Evaluation ---
     print("\n--- Starting Post-Training Quantization and Evaluation ---")
     
@@ -201,7 +200,7 @@ if __name__ == '__main__':
             sequence_length=MAX_SEQUENCE_LENGTH # Pass sequence_length
         )
         print(f"Quantized (INT8) Samples/Sec (CPU): {quantized_cpu_samples_per_sec:.2f}")
-
+'''
         # Evaluate the quantized model
         print("\n--- Quantized Model Evaluation ---")
         evaluate_fine_tuned_model(
@@ -217,50 +216,7 @@ if __name__ == '__main__':
             no_answer_threshold=NO_ANSWER_THRESHOLD # Use the same threshold
         )
     print("\n--- Post-Training Quantization Complete ---")
-'''
-    print("\n--- Starting Post-Training Static Quantization and Evaluation ---")
-    # Using the train_dataset_for_trainer for calibration, or a subset of it
-    calibration_subset_size = 1000 # Larger subset for more robust calibration
-    calibration_dataset = train_dataset_for_trainer.select(range(calibration_subset_size)) if len(train_dataset_for_trainer) >= calibration_subset_size else train_dataset_for_trainer
 
-    quantized_static_model_obj = quantize_PTSQ_model(
-        model_path=FINE_TUNED_MODEL_SAVE_PATH,
-        quantized_model_save_path=QUANTIZED_STATIC_MODEL_SAVE_PATH,
-        calibration_dataset=calibration_dataset,
-        tokenizer=parent_tokenizer
-    )
-
-    if quantized_static_model_obj:
-        print("\n--- Statically Quantized Model Size ---")
-        quantized_static_model_file_size_mb = os.path.getsize(os.path.join(QUANTIZED_STATIC_MODEL_SAVE_PATH, "quantized_model_static.pth")) / (1024 * 1024)
-        print(f"Model size at '{QUANTIZED_STATIC_MODEL_SAVE_PATH}' (quantized_model_static.pth): {quantized_static_model_file_size_mb:.2f} MB")
-
-        print("\n--- Benchmarking Statically Quantized Model Inference Speed ---")
-        quantized_static_cpu_samples_per_sec = benchmark_inference_speed(
-            model_path=QUANTIZED_STATIC_MODEL_SAVE_PATH,
-            tokenizer_path=QUANTIZED_STATIC_MODEL_SAVE_PATH,
-            is_quantized=True,
-            device_str="cpu",
-            batch_size=PER_DEVICE_EVAL_BATCH_SIZE,
-            sequence_length=MAX_SEQUENCE_LENGTH
-        )
-        print(f"Statically Quantized (INT8) Samples/Sec (CPU): {quantized_static_cpu_samples_per_sec:.2f}")
-
-        print("\n--- Statically Quantized Model Evaluation ---")
-        evaluate_fine_tuned_model(
-            model_path=QUANTIZED_STATIC_MODEL_SAVE_PATH,
-            tokenizer_path=QUANTIZED_STATIC_MODEL_SAVE_PATH,
-            eval_dataset=eval_dataset_for_trainer,
-            original_eval_examples=original_eval_examples_for_metrics,
-            compute_metrics_fn=bound_compute_metrics_for_trainer,
-            per_device_eval_batch_size=PER_DEVICE_EVAL_BATCH_SIZE,
-            fp16=False,
-            is_quantized=True,
-            output_dir=os.path.join(TRAINER_OUTPUT_DIR, "quantized_static_eval_results"),
-            no_answer_threshold=NO_ANSWER_THRESHOLD
-        )
-    print("\n--- Post-Training Static Quantization Complete ---")
-'''
     print("\n--- Starting Pruning and Evaluation ---")
 
     pruned_model = prune_PTUP_model(
