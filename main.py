@@ -43,8 +43,7 @@ if __name__ == '__main__':
         print("CUDA (NVIDIA GPU) is NOT available. Training will run on CPU.")
 
     # --- Load and Prepare Data ---
-    original_squad_dataset_dict, original_eval_examples, parent_tokenizer, tokenized_datasets_with_labels = \
-        load_and_prepare_data(
+    original_squad_dataset_dict, original_eval_examples, parent_tokenizer, tokenized_datasets_with_labels = load_and_prepare_data(
             model_name=MODEL_NAME,
             tokenizer_save_path=TOKENIZER_SAVE_PATH,
             tokenized_dataset_save_path=TOKENIZED_DATASET_SAVE_PATH,
@@ -96,7 +95,7 @@ if __name__ == '__main__':
 
     print("\n--- Baseline Model Sparsity ---")
     baseline_sparsity = calculate_sparsity(FINE_TUNED_MODEL_SAVE_PATH)
-    print(f"Baseline model has {baseline_sparsity:.2f}% sparsity (should be 0% for full-precision).")
+    print(f"Baseline model has {baseline_sparsity:.2f}%.")
 
     print("\n--- Benchmarking Baseline Model Inference Speed ---")
     baseline_gpu_samples_per_sec = benchmark_inference_speed(

@@ -17,7 +17,6 @@ def postprocess_qa_predictions(
     for i, feature in enumerate(features):
         features_per_example[example_id_to_index[feature["example_id"]]].append(i)
 
-    # Modified: all_predictions will now store dictionaries, not just text
     all_predictions = collections.OrderedDict() 
 
     print("\n--- Starting SQuAD v2.0 Post-processing ---")
@@ -98,7 +97,7 @@ def postprocess_qa_predictions(
         else:
             best_answer = {"text": "", "score": 0.0}
 
-        # SQuAD v2.0 specific: Compare best span score with NULL score using threshold ---
+        # SQuAD v2.0 specific: Compare best span score with NULL score using threshold
         final_prediction_text = ""
         no_answer_probability = min_null_score if min_null_score is not None else -float('inf') 
 
@@ -114,7 +113,7 @@ def postprocess_qa_predictions(
             "no_answer_probability": no_answer_probability
         }
 
-    # Format predictions to include 'no_answer_probability' ---
+    # Format predictions to include 'no_answer_probability'
     formatted_predictions = [
         {"id": k, "prediction_text": v["prediction_text"], "no_answer_probability": v["no_answer_probability"]} 
         for k, v in all_predictions.items()

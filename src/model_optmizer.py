@@ -5,7 +5,6 @@ import glob
 import time
 import torch.nn.utils.prune as prune
 
-
 def quantize_PTQ_model(model_path: str, quantized_model_save_path: str):
     """
     Applies dynamic quantization to a fine-tuned Question Answering model.
@@ -54,7 +53,6 @@ def prune_PTUP_model(
     model_path: str,
     pruned_model_save_path: str,
     pruning_amount: float = 0.2, # Percentage of weights to prune
-    model_name: str = "distilbert-base-uncased", # Needed for AutoModel.from_pretrained if reloading
 ):
     """
     Applies L1 unstructured pruning to a fine-tuned Question Answering model.
@@ -83,8 +81,8 @@ def prune_PTUP_model(
     # Define the modules (layers) and the attributes (weights) within them to prune.
     parameters_to_prune = []
     
-    # Prune transformer layers (q_lin, k_lin, v_lin, out_lin, ffn.lin1, ffn.lin2 in each layer)
-    for i in range(model.distilbert.config.n_layers): # DistilBERT has 6 transformer layers
+    # Prune transformer layers (q_lin, k_lin, v_lin, out_lin, ffn.lin1, ffn.lin2 in each layer) - DistilBERT has 6 transformer layers
+    for i in range(model.distilbert.config.n_layers): 
         layer = model.distilbert.transformer.layer[i]
         parameters_to_prune.extend([
             (layer.attention.q_lin, 'weight'),
@@ -241,7 +239,6 @@ def benchmark_inference_speed(
 
     print(f"\nBenchmarking '{os.path.basename(model_path)}' on {device_str.upper()}...")
     
-    # Load tokenizer to get vocab_size (needed for dummy input) and potentially for config
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
     
     # Load model (logic needs to differentiate quantized vs non-quantized)
