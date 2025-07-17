@@ -70,8 +70,7 @@ def postprocess_qa_predictions(
             for start_index in start_indexes:
                 for end_index in end_indexes:
                     # Filter invalid spans (existing logic)
-                    if not (context_start_token_idx <= start_index <= context_end_token_idx and \
-                            context_start_token_idx <= end_index <= context_end_token_idx):
+                    if not (context_start_token_idx <= start_index <= context_end_token_idx and context_start_token_idx <= end_index <= context_end_token_idx):
                         continue
                     if end_index < start_index or end_index - start_index + 1 > max_answer_length:
                         continue
@@ -126,7 +125,6 @@ def postprocess_qa_predictions(
     print("--- SQuAD Post-processing Complete ---")
     return squad_metric.compute(predictions=formatted_predictions, references=references)
 
-# The compute_squad_metrics function remains unchanged from previous version
 def compute_squad_metrics(p, *, original_examples, tokenized_features, tokenizer, no_answer_threshold=0.0):
     results = postprocess_qa_predictions(
         examples=original_examples,
