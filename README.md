@@ -2,6 +2,12 @@
 
 This project investigates the application and impact of model optimization techniques, specifically **Post-Training Dynamic Quantization (PTQ)** and **Post-Training Unstructured Pruning (PTUP)**, on a DistilBERT model. The model is fine-tuned for Question Answering (QA) on the SQuAD v2.0 dataset, with a focus on understanding the trade-offs between model performance, size, and inference speed.
 
+## Project Paper
+
+You can find the detailed paper discussing the methodology, experiments, and results of this project here:
+
+[**Download the Paper (PDF)**](https://github.com/ArthurgLeonida/AI_QuantizationAndPruning/releases/download/v1.0-final/QuantizationAndPruning.pdf).
+
 ## Features
 
 * **Efficient Data Pipeline:** Leverages Hugging Face's `datasets` library for robust and efficient data loading, tokenization, label alignment, multiprocessing, and local caching of processed data.
