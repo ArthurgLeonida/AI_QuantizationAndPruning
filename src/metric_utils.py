@@ -36,7 +36,7 @@ def postprocess_qa_predictions(
 
             # SQuAD v2.0 specific: Score for "no answer" (CLS token at index 0)
             feature_null_score = start_logits[0] + end_logits[0]
-            if min_null_score is None or feature_null_score < min_null_score:
+            if min_null_score is None or feature_null_score < min_null_score: ############ should be > ############
                 min_null_score = feature_null_score
 
             # --- Derive context boundaries from input_ids and tokenizer's SEP token ---
