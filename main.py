@@ -164,8 +164,7 @@ if __name__ == '__main__':
     pruned_model = prune_PTUP_model(
         model_path=FINE_TUNED_MODEL_SAVE_PATH,
         pruned_model_save_path=PRUNED_MODEL_SAVE_PATH,
-        pruning_amount=PRUNING_AMOUNT,
-        model_name=MODEL_NAME
+        pruning_amount=PRUNING_AMOUNT
     )
 
     if pruned_model:
