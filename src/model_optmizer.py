@@ -34,14 +34,11 @@ def quantize_PTQ_model(model_path: str, quantized_model_save_path: str):
         os.makedirs(quantized_model_save_path)
 
     # --- Save the entire quantized model object directly ---
-    # This is the recommended way to save dynamically quantized models in PyTorch.
-    # It saves the model's structure and state.
+    # Recommended way to save dynamically quantized models in PyTorch. It saves the model's structure and state.
     torch.save(quantized_model_obj, os.path.join(quantized_model_save_path, "quantized_model.pth"))
     print(f"Quantized model object saved to: {os.path.join(quantized_model_save_path, 'quantized_model.pth')}")
 
-    # Save model config (from original model) and tokenizer (from original model path)
-    # These are still needed even if loading the model object directly, for consistency
-    # and for AutoTokenizer.from_pretrained to work.
+    # --- Save model config (from original model) and tokenizer (from original model path) ---
     model.config.save_pretrained(quantized_model_save_path)
     tokenizer = AutoTokenizer.from_pretrained(model_path) 
     tokenizer.save_pretrained(quantized_model_save_path)
@@ -125,7 +122,7 @@ def calculate_sparsity(model_path: str) -> float:
     This function assumes the model is saved after prune.remove().
 
     Args:
-        model_path (str): Path to the directory containing the saved model.
+        model_path (str): Path to the directory containing the saved model (must be .safetensors).
 
     Returns:
         float: The percentage of zero weights in the model (0.0 to 100.0).
@@ -184,7 +181,7 @@ def measure_model_size(model_path: str):
     # Fallback to .bin if .safetensors is not found
     elif os.path.exists(os.path.join(model_path, "pytorch_model.bin")):
         model_file_name = "pytorch_model.bin"
-    else:
+    else: # If the file was saved with another name
         safetensors_files = glob.glob(os.path.join(model_path, "*.safetensors"))
         pytorch_bin_files = glob.glob(os.path.join(model_path, "*.bin"))
         
