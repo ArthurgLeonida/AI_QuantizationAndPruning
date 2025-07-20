@@ -17,7 +17,13 @@ You can find the detailed paper discussing the methodology, experiments, and res
 * **Post-Training Unstructured Pruning (PTUP):** Applies unstructured pruning to introduce sparsity in the model and assess its effects on performance, size, and speed.
 * **Automated Benchmarking:** Includes dedicated functions for precise measurement of model size and inference speed.
 
-## Setup
+## Prerequisites
+
+To set up and run this project, you will need to have the following installed:
+
+* **Python:** Version `3.11.9` (highly recommended to use this specific version for compatibility with project libraries).
+
+## Environment Setup and Dependency Installation
 
 1.  **Clone the repository:**
     ```bash
@@ -25,16 +31,27 @@ You can find the detailed paper discussing the methodology, experiments, and res
     cd AI_QuantizationAndPruning
     ```
 
-2.  **Create and activate a virtual environment:**
-    ```bash
-    python -m venv venv
-    # On Windows:
-    .\venv\Scripts\activate
-    # On macOS/Linux:
-    source venv/bin/activate
-    ```
+2.  **Create and Activate the Virtual Environment:**
+    It is crucial to create an isolated virtual environment for this project to prevent dependency conflicts.
+
+    * Create the virtual environment (this will create a folder named `venv` inside your project):
+        ```bash
+        python -m venv venv
+        ```
+
+    * Activate the virtual environment:
+        * In **PowerShell**:
+            ```bash
+            .\venv\Scripts\Activate.ps1
+            ```
+        * In **Git Bash / Command Prompt (CMD)**:
+            ```bash
+            source venv/Scripts/activate
+            ```
+        *(You will know the environment is active when `(venv)` appears at the beginning of your command prompt line.)*
 
 3.  **Install dependencies:**
+
     ```bash
     pip install -r requirements.txt
     ```
