@@ -10,6 +10,18 @@ def postprocess_qa_predictions(
     n_best_size=20, max_answer_length=30, 
     no_answer_threshold=0.0
 ):
+    """ Post-processes the raw predictions from a model to match the SQuAD format.  
+    Args:
+        examples (list): Original SQuAD examples.
+        features (list): Tokenized features corresponding to the examples.
+        predictions (tuple): Tuple containing start and end logits.
+        tokenizer (transformers.PreTrainedTokenizer): The tokenizer used for encoding.
+        n_best_size (int): Number of best answers to consider.
+        max_answer_length (int): Maximum length of the answer span.
+        no_answer_threshold (float): Threshold for determining if no answer is present. 
+    Returns:
+        dict: A dictionary with example IDs as keys and predicted answers as values.
+    """
     all_start_logits, all_end_logits = predictions
 
     example_id_to_index = {k: i for i, k in enumerate(examples["id"])}
