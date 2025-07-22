@@ -16,7 +16,6 @@ def load_squad_dataset_dict(version="squad"):
     print(f"Loading SQuAD dataset version: {version}")
     return load_dataset(version)
 
-
 def get_subsetted_datasets(
     tokenized_datasets_with_labels: DatasetDict,
     original_eval_examples: Dataset,
@@ -44,21 +43,19 @@ def get_subsetted_datasets(
         print(f"\nUsing a SUBSET for training and evaluation (Train size: {subset_size}).")
         train_dataset_for_trainer = train_dataset_for_trainer.select(range(subset_size))
         
-        # For evaluation, use a smaller subset of validation data, proportional to train subset
+        # For evaluation -> smaller subset of validation data (1//10), proportional to train subset
         eval_subset_size = min(subset_size // 10, len(tokenized_datasets_with_labels["validation"]))
+        
         if eval_subset_size == 0 and len(tokenized_datasets_with_labels["validation"]) > 0:
             eval_subset_size = 1 # Ensure at least 1 example if validation data exists
         
-        if eval_subset_size > 0:
-            eval_dataset_for_trainer = eval_dataset_for_trainer.select(range(eval_subset_size))
-            # Filter original evaluation examples by ID to ensure perfect match with tokenized subset
-            subset_example_ids = set(eval_dataset_for_trainer["example_id"])
-            original_eval_examples_for_metrics = original_eval_examples_for_metrics.filter(
-                lambda example: example["id"] in subset_example_ids
-            )
-            print(f"Subset sizes: Train={len(train_dataset_for_trainer)}, Eval Features={len(eval_dataset_for_trainer)}, Eval Examples={len(original_eval_examples_for_metrics)}")
-        else:
-            print("Warning: Evaluation subset size is 0 after subsetting.")
+        eval_dataset_for_trainer = eval_dataset_for_trainer.select(range(eval_subset_size))
+        # Filter original evaluation examples by ID to ensure perfect match with tokenized subset
+        subset_example_ids = set(eval_dataset_for_trainer["example_id"])
+        original_eval_examples_for_metrics = original_eval_examples_for_metrics.filter(
+            lambda example: example["id"] in subset_example_ids
+        )
+        print(f"Subset sizes: Train={len(train_dataset_for_trainer)}, Eval Features={len(eval_dataset_for_trainer)}, Eval Examples={len(original_eval_examples_for_metrics)}")
     else:
         print("\nUsing full dataset for training and evaluation.")
     
