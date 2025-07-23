@@ -170,12 +170,8 @@ def check_tokenization():
                 # Ensure start_pos and end_pos are within bounds
                 if 0 <= start_pos < len(offsets) and 0 <= end_pos < len(offsets):
                     char_start = offsets[start_pos][0]
-                    char_end = offsets[end_pos][1] # End of the last token
+                    char_end = offsets[end_pos][1]
                     
-                    # Extract the context string for this specific feature's relevant segment
-                    # This is tricky because original_example['context'] is the full context.
-                    # You'd need to use the token's offset mapping to extract the exact text segment.
-                    # A simpler visual check:
                     print(f"  Character Span in original context: ({char_start}, {char_end})")
                     print(f"  Actual text from original context at this span: '{original_example['context'][char_start:char_end]}'")
 
@@ -191,6 +187,6 @@ def check_tokenization():
                 else:
                     print("  ERROR: start_pos or end_pos out of bounds for offsets!")
 
-        print("\n" + "="*80) # Separator
+        print("\n" + "="*80)
 
 # check_tokenization()
