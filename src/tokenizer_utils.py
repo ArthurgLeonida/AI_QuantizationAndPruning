@@ -141,7 +141,6 @@ def check_tokenization():
             start_pos = processed_features["start_positions"][i]
             end_pos = processed_features["end_positions"][i]
             offsets = processed_features["offset_mapping"][i]
-            sequence_ids = processed_features.sequence_ids(i)
 
             # Convert input_ids back to tokens for readability
             tokens = local_tokenizer_check.convert_ids_to_tokens(input_ids)
