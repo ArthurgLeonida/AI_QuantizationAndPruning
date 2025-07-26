@@ -5,6 +5,7 @@ import glob
 import time
 import torch.nn.utils.prune as prune
 from functools import partial
+from torch.ao.quantization import QConfig, FakeQuantize, MovingAverageMinMaxObserver
 
 
 def quantize_PTQ_model(model_path: str, quantized_model_save_path: str):
@@ -53,7 +54,6 @@ def quantize_QAT_model(
     qat_model_save_path: str, # Path to save the QAT-trained and converted model
     train_dataset, # Training dataset for QAT fine-tuning (e.g., subsetted train_dataset_for_trainer)
     eval_dataset, # Evaluation dataset for QAT evaluation during training (e.g., subsetted eval_dataset_for_trainer)
-    original_eval_examples, # Original examples for compute_metrics (e.g., subsetted original_eval_examples_for_metrics)
     tokenizer, # Tokenizer object
     compute_metrics_fn, # The compute_squad_metrics function (already partial-bound in main.py)
     num_qat_epochs: int, # Number of epochs for QAT fine-tuning (e.g., from config.py)
@@ -100,8 +100,19 @@ def quantize_QAT_model(
     model.distilbert.embeddings.qconfig = None # Set qconfig to None for the embedding module
 
     print("Preparing model for Quantization-Aware Training (inserting fake quantization modules)...")
-    # Set the default QConfig for QAT on CPU (fbgemm is commonly used)
-    model.qconfig = torch.quantization.get_default_qconfig('fbgemm')
+    
+    custom_qconfig_for_qat = QConfig(
+        activation=FakeQuantize.with_args(
+            observer=MovingAverageMinMaxObserver,
+            quant_min=0, quant_max=255, dtype=torch.quint8, qscheme=torch.per_tensor_affine, reduce_range=False
+        ),
+        weight=FakeQuantize.with_args(
+            observer=MovingAverageMinMaxObserver,
+            quant_min=-128, quant_max=127, dtype=torch.qint8, qscheme=torch.per_tensor_affine, reduce_range=False
+        )
+    )
+    model.qconfig = custom_qconfig_for_qat # Apply the custom QConfig
+
     torch.quantization.prepare_qat(model, inplace=True) # Prepare for QAT
 
     print("Model prepared for QAT.")
@@ -126,7 +137,7 @@ def quantize_QAT_model(
         greater_is_better=True,
         push_to_hub=False,
         report_to="tensorboard",
-        fp16=fp16,
+        fp16=False,
         max_steps=max_train_steps if max_train_steps != -1 else -1,
     )
 
@@ -161,8 +172,8 @@ def quantize_QAT_model(
         os.makedirs(qat_model_save_path)
 
     # Save the entire quantized model object directly (recommended for torch.quantization)
-    torch.save(quantized_model_obj, os.path.join(qat_model_save_path, "quantized_model_qat.pth"))
-    print(f"QAT-trained model object saved to: {os.path.join(qat_model_save_path, 'quantized_model_qat.pth')}")
+    torch.save(quantized_model_obj, os.path.join(qat_model_save_path, "quantized_model.pth"))
+    print(f"QAT-trained model object saved to: {os.path.join(qat_model_save_path, 'quantized_model.pth')}")
 
     # Save original config and tokenizer (still needed for AutoTokenizer to load from path)
     # Get config from the *original* model load path

@@ -71,7 +71,7 @@ if __name__ == '__main__':
     )
 
     ################################## Fine-Tuned Baseline Model Training ##################################
-    
+    ''' 
     print("\n--- Starting Model Training Phase ---")
     train_qa_model(
         model_name=MODEL_NAME,
@@ -203,7 +203,7 @@ if __name__ == '__main__':
             no_answer_threshold=NO_ANSWER_THRESHOLD
         )
     print("\n--- Post Training Unstructured Pruning Complete ---")
-
+'''
     ################################## Quantization-Aware Training (QAT) ##################################
 
     print("\n--- Starting Quantization-Aware Training (QAT) and Evaluation ---")
@@ -216,7 +216,6 @@ if __name__ == '__main__':
         qat_model_save_path=QUANTIZED_QAT_MODEL_SAVE_PATH,
         train_dataset=train_dataset_for_trainer, # Use the (subsetted/full) training dataset
         eval_dataset=eval_dataset_for_trainer,   # Use the (subsetted/full) evaluation dataset
-        original_eval_examples=original_eval_examples_for_metrics, # Pass original eval examples for metrics
         tokenizer=parent_tokenizer,
         compute_metrics_fn=bound_compute_metrics_for_trainer, # Pass the bound compute_metrics
         num_qat_epochs=NUM_QAT_EPOCHS, # From config.py
@@ -230,9 +229,10 @@ if __name__ == '__main__':
 
     if quantized_qat_model_obj:
         print("\n--- QAT Model Size ---")
-        qat_model_file_size_mb = os.path.getsize(os.path.join(QUANTIZED_QAT_MODEL_SAVE_PATH, "quantized_model_qat.pth")) / (1024 * 1024)
-        print(f"Model size at '{QUANTIZED_QAT_MODEL_SAVE_PATH}' (quantized_model_qat.pth): {qat_model_file_size_mb:.2f} MB")
+        qat_model_file_size_mb = os.path.getsize(os.path.join(QUANTIZED_QAT_MODEL_SAVE_PATH, "quantized_model.pth")) / (1024 * 1024)
+        print(f"Model size at '{QUANTIZED_QAT_MODEL_SAVE_PATH}' (quantized_model.pth): {qat_model_file_size_mb:.2f} MB")
 
+        '''
         print("\n--- Benchmarking QAT Model Inference Speed ---")
         qat_cpu_samples_per_sec = benchmark_inference_speed(
             model_path=QUANTIZED_QAT_MODEL_SAVE_PATH,
@@ -243,7 +243,7 @@ if __name__ == '__main__':
             sequence_length=MAX_SEQUENCE_LENGTH
         )
         print(f"QAT (INT8) Samples/Sec (CPU): {qat_cpu_samples_per_sec:.2f}")
-
+        
         print("\n--- QAT Model Evaluation ---")
         evaluate_fine_tuned_model(
             model_path=QUANTIZED_QAT_MODEL_SAVE_PATH,
@@ -257,4 +257,5 @@ if __name__ == '__main__':
             output_dir=os.path.join(TRAINER_OUTPUT_DIR, "quantized_qat_eval_results"), # Separate dir
             no_answer_threshold=NO_ANSWER_THRESHOLD
         )
+    '''
     print("\n--- Quantization-Aware Training Complete ---")
