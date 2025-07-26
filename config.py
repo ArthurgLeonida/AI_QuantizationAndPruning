@@ -10,6 +10,7 @@ FINE_TUNED_MODEL_SAVE_PATH = "./fine_tuned_baseline_model"
 TRAINER_OUTPUT_DIR = "./results"
 QUANTIZED_MODEL_SAVE_PATH = "./PTQ_model"
 PRUNED_MODEL_SAVE_PATH = "./PTUP_model"
+QUANTIZED_QAT_MODEL_SAVE_PATH = "./QAT_model"
 
 # Training Hyperparameters
 NUM_TRAIN_EPOCHS = 10
@@ -22,6 +23,8 @@ NO_ANSWER_THRESHOLD = 15.03
 
 # Quantization and Pruning Settings
 PRUNING_AMOUNT = 0.2 # Percentage of weights to prune (20%)
+NUM_QAT_EPOCHS = 3 # Fewer epochs for QAT fine-tuning
+QAT_LEARNING_RATE = 1e-6 # Lower LR for QAT fine-tuning
 
 # Multiprocessing
 NUM_PROCESSES_FOR_MAP = 6 # Number of processes for datasets.map() (adjust based on your CPU cores)

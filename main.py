@@ -6,7 +6,7 @@ import torch
 from src.model_trainer import train_qa_model 
 from src.metric_utils import compute_squad_metrics 
 from src.model_evaluator import evaluate_fine_tuned_model 
-from src.model_optmizer import quantize_PTQ_model, measure_model_size, benchmark_inference_speed, prune_PTUP_model, calculate_sparsity
+from src.model_optmizer import quantize_PTQ_model, quantize_QAT_model, measure_model_size, benchmark_inference_speed, prune_PTUP_model, calculate_sparsity
 from src.data_loader import get_subsetted_datasets, load_and_prepare_data
 # Import configuration from config.py
 from config import (
@@ -28,7 +28,10 @@ from config import (
     NO_ANSWER_THRESHOLD,
     QUANTIZED_MODEL_SAVE_PATH,
     PRUNED_MODEL_SAVE_PATH,
-    PRUNING_AMOUNT
+    PRUNING_AMOUNT,
+    QUANTIZED_QAT_MODEL_SAVE_PATH,
+    NUM_QAT_EPOCHS,
+    QAT_LEARNING_RATE
 )
 
 if __name__ == '__main__':
@@ -200,3 +203,58 @@ if __name__ == '__main__':
             no_answer_threshold=NO_ANSWER_THRESHOLD
         )
     print("\n--- Post Training Unstructured Pruning Complete ---")
+
+    ################################## Quantization-Aware Training (QAT) ##################################
+
+    print("\n--- Starting Quantization-Aware Training (QAT) and Evaluation ---")
+    
+    # QAT requires a training dataset for fine-tuning. Use the same subsetted/full train_dataset_for_trainer.
+    # QAT also requires original_eval_examples_for_metrics and eval_dataset_for_trainer for its internal evaluation.
+    
+    quantized_qat_model_obj = quantize_QAT_model(
+        model_path=FINE_TUNED_MODEL_SAVE_PATH, # Start from the fine-tuned full-precision model
+        qat_model_save_path=QUANTIZED_QAT_MODEL_SAVE_PATH,
+        train_dataset=train_dataset_for_trainer, # Use the (subsetted/full) training dataset
+        eval_dataset=eval_dataset_for_trainer,   # Use the (subsetted/full) evaluation dataset
+        original_eval_examples=original_eval_examples_for_metrics, # Pass original eval examples for metrics
+        tokenizer=parent_tokenizer,
+        compute_metrics_fn=bound_compute_metrics_for_trainer, # Pass the bound compute_metrics
+        num_qat_epochs=NUM_QAT_EPOCHS, # From config.py
+        qat_learning_rate=QAT_LEARNING_RATE, # From config.py
+        per_device_train_batch_size=PER_DEVICE_TRAIN_BATCH_SIZE,
+        per_device_eval_batch_size=PER_DEVICE_EVAL_BATCH_SIZE,
+        output_dir=os.path.join(TRAINER_OUTPUT_DIR, "qat_training_results"), # Separate output dir for QAT training
+        fp16=USE_FP16, # Use FP16 for QAT training if GPU is available
+        max_train_steps=-1 # Run for full QAT epochs
+    )
+
+    if quantized_qat_model_obj:
+        print("\n--- QAT Model Size ---")
+        qat_model_file_size_mb = os.path.getsize(os.path.join(QUANTIZED_QAT_MODEL_SAVE_PATH, "quantized_model_qat.pth")) / (1024 * 1024)
+        print(f"Model size at '{QUANTIZED_QAT_MODEL_SAVE_PATH}' (quantized_model_qat.pth): {qat_model_file_size_mb:.2f} MB")
+
+        print("\n--- Benchmarking QAT Model Inference Speed ---")
+        qat_cpu_samples_per_sec = benchmark_inference_speed(
+            model_path=QUANTIZED_QAT_MODEL_SAVE_PATH,
+            tokenizer_path=QUANTIZED_QAT_MODEL_SAVE_PATH,
+            is_quantized=True, # It's a quantized model
+            device_str="cpu", # QAT models typically run on CPU for inference
+            batch_size=PER_DEVICE_EVAL_BATCH_SIZE,
+            sequence_length=MAX_SEQUENCE_LENGTH
+        )
+        print(f"QAT (INT8) Samples/Sec (CPU): {qat_cpu_samples_per_sec:.2f}")
+
+        print("\n--- QAT Model Evaluation ---")
+        evaluate_fine_tuned_model(
+            model_path=QUANTIZED_QAT_MODEL_SAVE_PATH,
+            tokenizer_path=QUANTIZED_QAT_MODEL_SAVE_PATH,
+            eval_dataset=eval_dataset_for_trainer,
+            original_eval_examples=original_eval_examples_for_metrics,
+            compute_metrics_fn=bound_compute_metrics_for_trainer,
+            per_device_eval_batch_size=PER_DEVICE_EVAL_BATCH_SIZE,
+            fp16=False, # INT8 quantized models typically run on CPU, not FP16
+            is_quantized=True,
+            output_dir=os.path.join(TRAINER_OUTPUT_DIR, "quantized_qat_eval_results"), # Separate dir
+            no_answer_threshold=NO_ANSWER_THRESHOLD
+        )
+    print("\n--- Quantization-Aware Training Complete ---")

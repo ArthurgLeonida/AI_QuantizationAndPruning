@@ -8,6 +8,7 @@ results/
 squad_tokenized_dataset/
 PTQ_model/
 PTUP_model/
+QAT_model/
 
 # ----------------------------------------------------
 # Python Specific Files

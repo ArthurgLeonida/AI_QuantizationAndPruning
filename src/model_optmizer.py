@@ -1,9 +1,11 @@
 import torch
 import os
-from transformers import AutoModelForQuestionAnswering, AutoTokenizer
+from transformers import AutoModelForQuestionAnswering, AutoTokenizer, AutoConfig, TrainingArguments, Trainer, DataCollatorWithPadding
 import glob
 import time
 import torch.nn.utils.prune as prune
+from functools import partial
+
 
 def quantize_PTQ_model(model_path: str, quantized_model_save_path: str):
     """
@@ -43,6 +45,132 @@ def quantize_PTQ_model(model_path: str, quantized_model_save_path: str):
     tokenizer = AutoTokenizer.from_pretrained(model_path) 
     tokenizer.save_pretrained(quantized_model_save_path)
     print("Quantized model config and tokenizer saved.")
+    
+    return quantized_model_obj
+
+def quantize_QAT_model(
+    model_path: str, # Path to the fine-tuned (full-precision) baseline model
+    qat_model_save_path: str, # Path to save the QAT-trained and converted model
+    train_dataset, # Training dataset for QAT fine-tuning (e.g., subsetted train_dataset_for_trainer)
+    eval_dataset, # Evaluation dataset for QAT evaluation during training (e.g., subsetted eval_dataset_for_trainer)
+    original_eval_examples, # Original examples for compute_metrics (e.g., subsetted original_eval_examples_for_metrics)
+    tokenizer, # Tokenizer object
+    compute_metrics_fn, # The compute_squad_metrics function (already partial-bound in main.py)
+    num_qat_epochs: int, # Number of epochs for QAT fine-tuning (e.g., from config.py)
+    qat_learning_rate: float, # Learning rate for QAT fine-tuning (e.g., from config.py)
+    per_device_train_batch_size: int,
+    per_device_eval_batch_size: int,
+    output_dir: str, # Output directory for QAT Trainer logs and checkpoints
+    fp16: bool, # Whether to use mixed-precision for QAT training (True if GPU available)
+    max_train_steps: int = -1 # Max steps for QAT training, -1 for no limit
+):
+    """
+    Applies Quantization-Aware Training (QAT) to a fine-tuned QA model.
+    This involves preparing the model with fake quantization, retraining, and then converting.
+
+    Args:
+        model_path (str): Path to the directory containing the full-precision fine-tuned model.
+        qat_model_save_path (str): Path to save the QAT-trained and converted model.
+        train_dataset: Training dataset for QAT fine-tuning.
+        eval_dataset: Evaluation dataset for QAT evaluation.
+        original_eval_examples: Original examples for compute_metrics.
+        tokenizer: Tokenizer object.
+        compute_metrics_fn: The compute_squad_metrics function (already partial-bound).
+        num_qat_epochs (int): Number of epochs for QAT fine-tuning.
+        qat_learning_rate (float): Learning rate for QAT fine-tuning.
+        per_device_train_batch_size (int): Batch size for QAT training.
+        per_device_eval_batch_size (int): Batch size for QAT evaluation.
+        output_dir (str): Output directory for QAT Trainer logs and checkpoints.
+        fp16 (bool): Whether to use mixed-precision for QAT training.
+        max_train_steps (int): Max steps for QAT training.
+    """
+    if not os.path.isdir(model_path):
+        print(f"Error: Full-precision baseline model not found at {model_path}.")
+        return None
+
+    print(f"\nLoading full-precision model from: {model_path} for QAT preparation...")
+    model = AutoModelForQuestionAnswering.from_pretrained(model_path)
+    model.train()
+
+    # --- Prepare the model for QAT ---
+    # Ensure model is on CPU for torch.quantization.prepare_qat
+    model.to(torch.device("cpu"))
+    
+    # Exclude embeddings from quantization if they cause issues (as they did for PTSQ)
+    model.distilbert.embeddings.qconfig = None # Set qconfig to None for the embedding module
+
+    print("Preparing model for Quantization-Aware Training (inserting fake quantization modules)...")
+    # Set the default QConfig for QAT on CPU (fbgemm is commonly used)
+    model.qconfig = torch.quantization.get_default_qconfig('fbgemm')
+    torch.quantization.prepare_qat(model, inplace=True) # Prepare for QAT
+
+    print("Model prepared for QAT.")
+
+    # --- 2. QAT Retraining/Fine-tuning ---
+    print(f"\nStarting QAT fine-tuning for {num_qat_epochs} epochs...")
+    
+    # QAT training arguments - typically fewer epochs and a lower learning rate
+    qat_training_args = TrainingArguments(
+        output_dir=output_dir,
+        eval_strategy="epoch",
+        learning_rate=qat_learning_rate,
+        per_device_train_batch_size=per_device_train_batch_size,
+        per_device_eval_batch_size=per_device_eval_batch_size,
+        num_train_epochs=num_qat_epochs,
+        weight_decay=0.01, # Can adjust
+        logging_dir=os.path.join(output_dir, "logs"),
+        logging_steps=100, # More frequent logging for QAT might be useful
+        save_strategy="epoch",
+        load_best_model_at_end=True,
+        metric_for_best_model="f1",
+        greater_is_better=True,
+        push_to_hub=False,
+        report_to="tensorboard",
+        fp16=fp16,
+        max_steps=max_train_steps if max_train_steps != -1 else -1,
+    )
+
+    # Move model to GPU if FP16 is true and CUDA is available for training
+    if fp16 and torch.cuda.is_available():
+        model.to(torch.device("cuda"))
+        print("Model moved to CUDA for QAT training (FP16 enabled).")
+    # Note: If fp16 is False or CUDA not available, model stays on CPU (where prepare_qat was called)
+
+    qat_trainer = Trainer(
+        model=model,
+        args=qat_training_args,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        processing_class=tokenizer,
+        compute_metrics=compute_metrics_fn,
+    )
+    
+    # QAT training loop
+    qat_trainer.train()
+    print("QAT fine-tuning complete.")
+
+    # --- 3. Convert the model to its final quantized version ---
+    print("\nConverting QAT-trained model to final quantized version...")
+    # Set model to eval mode before conversion (important for BatchNorm layers if any)
+    model.eval() 
+    quantized_model_obj = torch.quantization.convert(model, inplace=True)
+    print("Model converted to final quantized version.")
+
+    # --- Save the QAT-trained and converted model ---
+    if not os.path.exists(qat_model_save_path):
+        os.makedirs(qat_model_save_path)
+
+    # Save the entire quantized model object directly (recommended for torch.quantization)
+    torch.save(quantized_model_obj, os.path.join(qat_model_save_path, "quantized_model_qat.pth"))
+    print(f"QAT-trained model object saved to: {os.path.join(qat_model_save_path, 'quantized_model_qat.pth')}")
+
+    # Save original config and tokenizer (still needed for AutoTokenizer to load from path)
+    # Get config from the *original* model load path
+    original_config = AutoConfig.from_pretrained(model_path)
+    original_config.save_pretrained(qat_model_save_path)
+    tokenizer_obj = AutoTokenizer.from_pretrained(model_path)
+    tokenizer_obj.save_pretrained(qat_model_save_path)
+    print("QAT model config and tokenizer saved.")
     
     return quantized_model_obj
 
@@ -208,7 +336,7 @@ def benchmark_inference_speed(
     model_path: str,
     tokenizer_path: str, 
     is_quantized: bool = False,
-    device_str: str = "cpu", # Use "cpu" or "cuda"
+    device_str: str = "cpu",
     batch_size: int = 16,
     sequence_length: int = 512,
     num_warmup_runs: int = 10,
