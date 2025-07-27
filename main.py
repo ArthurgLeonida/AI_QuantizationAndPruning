@@ -208,23 +208,20 @@ if __name__ == '__main__':
 
     print("\n--- Starting Quantization-Aware Training (QAT) and Evaluation ---")
     
-    # QAT requires a training dataset for fine-tuning. Use the same subsetted/full train_dataset_for_trainer.
-    # QAT also requires original_eval_examples_for_metrics and eval_dataset_for_trainer for its internal evaluation.
-    
     quantized_qat_model_obj = quantize_QAT_model(
-        model_path=FINE_TUNED_MODEL_SAVE_PATH, # Start from the fine-tuned full-precision model
+        model_path=FINE_TUNED_MODEL_SAVE_PATH,
         qat_model_save_path=QUANTIZED_QAT_MODEL_SAVE_PATH,
-        train_dataset=train_dataset_for_trainer, # Use the (subsetted/full) training dataset
-        eval_dataset=eval_dataset_for_trainer,   # Use the (subsetted/full) evaluation dataset
+        train_dataset=train_dataset_for_trainer,
+        eval_dataset=eval_dataset_for_trainer,  
         tokenizer=parent_tokenizer,
-        compute_metrics_fn=bound_compute_metrics_for_trainer, # Pass the bound compute_metrics
-        num_qat_epochs=NUM_QAT_EPOCHS, # From config.py
-        qat_learning_rate=QAT_LEARNING_RATE, # From config.py
+        compute_metrics_fn=bound_compute_metrics_for_trainer,
+        num_qat_epochs=NUM_QAT_EPOCHS,
+        qat_learning_rate=QAT_LEARNING_RATE, 
         per_device_train_batch_size=PER_DEVICE_TRAIN_BATCH_SIZE,
         per_device_eval_batch_size=PER_DEVICE_EVAL_BATCH_SIZE,
-        output_dir=os.path.join(TRAINER_OUTPUT_DIR, "qat_training_results"), # Separate output dir for QAT training
-        fp16=USE_FP16, # Use FP16 for QAT training if GPU is available
-        max_train_steps=-1 # Run for full QAT epochs
+        output_dir=os.path.join(TRAINER_OUTPUT_DIR, "qat_training_results"), 
+        fp16=USE_FP16, 
+        max_train_steps=-1 
     )
 
     if quantized_qat_model_obj:

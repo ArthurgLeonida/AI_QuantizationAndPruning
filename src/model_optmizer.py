@@ -92,7 +92,6 @@ def quantize_QAT_model(
     model.train()
 
     # --- Prepare the model for QAT ---
-    # Ensure model is on CPU for torch.quantization.prepare_qat
     model.to(torch.device("cpu"))
     
     # Exclude embeddings from quantization
