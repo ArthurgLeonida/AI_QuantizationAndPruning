@@ -88,18 +88,6 @@ def prepare_squad_features(examples, tokenizer_path, max_length=512, stride=128)
                 end_token_index -= 1
             tokenized_examples["end_positions"].append(end_token_index + 1)
 
-            # Final adjustment for subword tokenization
-            current_start_position = tokenized_examples["start_positions"][-1]
-            current_end_position = tokenized_examples["end_positions"][-1]
-
-            while current_start_position < len(input_ids) and offsets[current_start_position][0] <= start_char:
-                current_start_position += 1
-            tokenized_examples["start_positions"][-1] = current_start_position - 1
-
-            while current_end_position >= 0 and offsets[current_end_position][1] >= end_char:
-                current_end_position -= 1
-            tokenized_examples["end_positions"][-1] = current_end_position + 1
-
     return tokenized_examples
 
 def check_tokenization():
@@ -188,4 +176,4 @@ def check_tokenization():
 
         print("\n" + "="*80)
 
-# check_tokenization()
+#check_tokenization()
