@@ -71,7 +71,7 @@ if __name__ == '__main__':
     )
 
     ################################## Fine-Tuned Baseline Model Training ##################################
-    ''' 
+    
     print("\n--- Starting Model Training Phase ---")
     train_qa_model(
         model_name=MODEL_NAME,
@@ -203,7 +203,7 @@ if __name__ == '__main__':
             no_answer_threshold=NO_ANSWER_THRESHOLD
         )
     print("\n--- Post Training Unstructured Pruning Complete ---")
-'''
+
     ################################## Quantization-Aware Training (QAT) ##################################
 
     print("\n--- Starting Quantization-Aware Training (QAT) and Evaluation ---")
@@ -229,7 +229,7 @@ if __name__ == '__main__':
         qat_model_file_size_mb = os.path.getsize(os.path.join(QUANTIZED_QAT_MODEL_SAVE_PATH, "quantized_model.pth")) / (1024 * 1024)
         print(f"Model size at '{QUANTIZED_QAT_MODEL_SAVE_PATH}' (quantized_model.pth): {qat_model_file_size_mb:.2f} MB")
 
-        '''
+        
         print("\n--- Benchmarking QAT Model Inference Speed ---")
         qat_cpu_samples_per_sec = benchmark_inference_speed(
             model_path=QUANTIZED_QAT_MODEL_SAVE_PATH,
@@ -254,5 +254,5 @@ if __name__ == '__main__':
             output_dir=os.path.join(TRAINER_OUTPUT_DIR, "quantized_qat_eval_results"), # Separate dir
             no_answer_threshold=NO_ANSWER_THRESHOLD
         )
-    '''
+    
     print("\n--- Quantization-Aware Training Complete ---")
