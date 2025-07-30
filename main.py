@@ -229,7 +229,10 @@ if __name__ == '__main__':
         qat_model_file_size_mb = os.path.getsize(os.path.join(QUANTIZED_QAT_MODEL_SAVE_PATH, "quantized_model.pth")) / (1024 * 1024)
         print(f"Model size at '{QUANTIZED_QAT_MODEL_SAVE_PATH}' (quantized_model.pth): {qat_model_file_size_mb:.2f} MB")
 
-        
+    '''
+    # Not working -> Why? -> Because the underlying PyTorch kernels for static quantization aren't fully supported on my specific CPU backend
+    # How to fix? -> Hugging Face Optimum library for QAT, followed by ONNX export for inference
+
         print("\n--- Benchmarking QAT Model Inference Speed ---")
         qat_cpu_samples_per_sec = benchmark_inference_speed(
             model_path=QUANTIZED_QAT_MODEL_SAVE_PATH,
@@ -256,3 +259,4 @@ if __name__ == '__main__':
         )
     
     print("\n--- Quantization-Aware Training Complete ---")
+    '''
