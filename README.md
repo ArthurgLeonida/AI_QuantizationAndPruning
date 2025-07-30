@@ -27,7 +27,7 @@ To set up and run this project, you will need to have the following installed:
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/ArthurgLeonida/AI_QuantizationAndPruning.git]
+    git clone https://github.com/ArthurgLeonida/AI_QuantizationAndPruning.git
     cd AI_QuantizationAndPruning
     ```
 
