@@ -274,7 +274,7 @@ def calculate_sparsity(model_path: str) -> float:
     
     # Iterate over all named parameters in the model
     for name, param in model.named_parameters():
-        if 'weight' in name and param.dim() > 1: # focus on layers often pruned
+        if 'weight' in name and param.dim() > 1:
             total_elements += param.numel() 
             zero_elements += torch.sum(param == 0).item()
 
