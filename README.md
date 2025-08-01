@@ -6,7 +6,7 @@ This project investigates the application and impact of model optimization techn
 
 You can find the detailed paper discussing the methodology, experiments, and results of this project here:
 
-[**Download the Paper (PDF)**](https://github.com/ArthurgLeonida/AI_QuantizationAndPruning/releases/download/v2.0-final/QuantizationAndPruning_Paper.pdf).
+[**Download the Paper (PDF)**](https://github.com/ArthurgLeonida/AI_QuantizationAndPruning/releases/download/v3.0-final/QuantizationAndPruning_Paper.pdf).
 
 ## Features
 
